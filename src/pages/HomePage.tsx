@@ -425,7 +425,7 @@ function MobileBottomNav() {
         <ShoppingCart size={22} className="fill-current" />
         {itemCount > 0 && <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-primary text-[0.58rem] text-[#120906]">{itemCount}</span>}
       </Link>
-      <Link to="/login" aria-label="Perfil">
+      <Link to="/login" search={{ redirect: '/' }} aria-label="Perfil">
         <UserRound size={22} className="fill-current" />
       </Link>
     </nav>

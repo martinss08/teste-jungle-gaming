@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { AppShell } from './modules/layout/AppShell'
 import { CartProvider } from './modules/cart/CartProvider'
+import { AuthProvider } from './modules/auth/AuthProvider'
+import { RequireAuth } from './modules/auth/RequireAuth'
 import { HomePage } from './pages/HomePage'
 import { NftDetailsPage } from './pages/NftDetailsPage'
 import { CartPage } from './pages/CartPage'
@@ -73,37 +75,59 @@ const cartRoute = createRoute({
 const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/pagamento',
-  component: CheckoutPage,
+  component: () => (
+    <RequireAuth>
+      <CheckoutPage />
+    </RequireAuth>
+  ),
 })
 
 const confirmationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/confirmacao',
-  component: ConfirmationPage,
+  component: () => (
+    <RequireAuth>
+      <ConfirmationPage />
+    </RequireAuth>
+  ),
 })
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   component: LoginPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === 'string' ? search.redirect : '/',
+  }),
 })
 
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cadastro',
   component: RegisterPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === 'string' ? search.redirect : '/',
+  }),
 })
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/perfil',
-  component: ProfilePage,
+  component: () => (
+    <RequireAuth>
+      <ProfilePage />
+    </RequireAuth>
+  ),
 })
 
 const walletsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/carteiras',
-  component: WalletsPage,
+  component: () => (
+    <RequireAuth>
+      <WalletsPage />
+    </RequireAuth>
+  ),
 })
 
 const routeTree = rootRoute.addChildren([
@@ -131,9 +155,11 @@ await enableMocking()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <RouterProvider router={router} />
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <RouterProvider router={router} />
+        </CartProvider>
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

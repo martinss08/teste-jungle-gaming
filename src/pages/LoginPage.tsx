@@ -1,31 +1,40 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { EyeOff } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+import axios from 'axios'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input, Label } from '../components/ui/Field'
 import { cn } from '../lib/utils'
+import { useAuth } from '../modules/auth/useAuth'
+import type { ApiErrorResponse } from '../contracts/api'
 
 export function LoginPage() {
+  const loginForm = useAuthForm(false)
+
   return (
     <>
       <MobileAuthShell title="Entrar" footer="Novo na Kurio? Crie uma conta" footerTo="/cadastro" submitLabel="Entrar" />
 
       <div className="hidden md:block">
         <AuthLayout title="Entrar na conta" subtitle="Retome carrinho, favoritos e pedidos recentes.">
-          <form className="grid gap-4">
+          <form className="grid gap-4" onSubmit={loginForm.handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="julia@greenmint.dev" />
+              <Input id="email" name="email" type="email" defaultValue="julia@greenmint.dev" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" defaultValue="greenmint" />
+              <Input id="password" name="password" type="password" defaultValue="greenmint" />
             </div>
-            <Button type="button" size="lg">Entrar</Button>
+            {loginForm.error && <p className="text-sm font-semibold text-red-200">{loginForm.error}</p>}
+            <Button type="submit" size="lg" disabled={loginForm.isSubmitting}>
+              {loginForm.isSubmitting ? 'Entrando...' : 'Entrar'}
+            </Button>
           </form>
           <p className="mt-5 text-center text-sm text-foreground/60">
             Ainda nao tem conta?{' '}
-            <Link to="/cadastro" className="font-semibold text-primarySoft hover:underline">
+            <Link to="/cadastro" search={{ redirect: '/' }} className="font-semibold text-primarySoft hover:underline">
               Criar cadastro
             </Link>
           </p>
@@ -48,6 +57,8 @@ export function MobileAuthShell({
   footerTo: '/login' | '/cadastro'
   register?: boolean
 }) {
+  const authForm = useAuthForm(register)
+
   return (
     <div className="min-h-screen bg-[#120906] px-7 pb-8 pt-[132px] font-mono text-[#f8ead6] md:hidden">
       <Link to="/" search={{ q: '', rarity: 'todos', sort: 'recentes', page: 1 }} className="mx-auto block w-max text-[2rem] font-black tracking-[0.16em]">
@@ -58,20 +69,21 @@ export function MobileAuthShell({
         {title}
       </h1>
 
-      <form className="mt-9 grid gap-3">
+      <form className="mt-9 grid gap-3" onSubmit={authForm.handleSubmit}>
         {register && (
-          <MobileAuthInput placeholder="Nome de usuario" centered />
+          <MobileAuthInput name="name" placeholder="Nome de usuario" centered />
         )}
-        <MobileAuthInput placeholder={register ? 'Digite seu e-mail' : 'contato@email.com'} type="email" />
-        <MobileAuthInput placeholder={register ? 'Senha' : '***********'} type="password" highlighted={!register} />
-        {register && <MobileAuthInput placeholder="Confirmar senha" type="password" />}
+        <MobileAuthInput name="email" placeholder={register ? 'Digite seu e-mail' : 'contato@email.com'} type="email" defaultValue={register ? undefined : 'julia@greenmint.dev'} />
+        <MobileAuthInput name="password" placeholder={register ? 'Senha' : '***********'} type="password" highlighted={!register} defaultValue={register ? undefined : 'greenmint'} />
+        {register && <MobileAuthInput name="confirm" placeholder="Confirmar senha" type="password" />}
         {!register && (
           <button type="button" className="justify-self-end text-sm font-bold tracking-[0.06em] text-primarySoft">
             Esqueceu a senha?
           </button>
         )}
-        <button type="button" className="mt-7 h-[60px] rounded-[9px] bg-[#dc8f4c] text-base font-black tracking-[0.08em] text-[#120906]">
-          {submitLabel}
+        {authForm.error && <p className="text-sm font-semibold text-red-200">{authForm.error}</p>}
+        <button type="submit" className="mt-7 h-[60px] rounded-[9px] bg-[#dc8f4c] text-base font-black tracking-[0.08em] text-[#120906]" disabled={authForm.isSubmitting}>
+          {authForm.isSubmitting ? 'Aguarde...' : submitLabel}
         </button>
       </form>
 
@@ -92,7 +104,7 @@ export function MobileAuthShell({
         </button>
       </div>
 
-      <Link to={footerTo} className="mt-10 block text-center text-sm tracking-[0.07em] text-[#ceb18f]">
+      <Link to={footerTo} search={{ redirect: '/' }} className="mt-10 block text-center text-sm tracking-[0.07em] text-[#ceb18f]">
         {footer}
       </Link>
     </div>
@@ -100,15 +112,19 @@ export function MobileAuthShell({
 }
 
 function MobileAuthInput({
+  name,
   placeholder,
   type = 'text',
   highlighted = false,
   centered = false,
+  defaultValue,
 }: {
+  name: string
   placeholder: string
   type?: string
   highlighted?: boolean
   centered?: boolean
+  defaultValue?: string
 }) {
   const isPassword = type === 'password'
 
@@ -116,7 +132,9 @@ function MobileAuthInput({
     <label className="relative block">
       <input
         type={type}
+        name={name}
         placeholder={placeholder}
+        defaultValue={defaultValue}
         className={cn(
           'h-[50px] w-full rounded-[9px] border border-border bg-transparent px-4 text-sm tracking-[0.06em] text-foreground placeholder:text-[#b9966d] outline-none',
           highlighted && 'border-primary',
@@ -127,6 +145,64 @@ function MobileAuthInput({
       {isPassword && <EyeOff className="absolute right-4 top-1/2 -translate-y-1/2 text-[#70402a]" size={18} />}
     </label>
   )
+}
+
+export function useAuthForm(register: boolean) {
+  const navigate = useNavigate()
+  const { login, register: registerUser } = useAuth()
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+
+    const form = new FormData(event.currentTarget)
+    const name = String(form.get('name') ?? '').trim()
+    const email = String(form.get('email') ?? '').trim()
+    const password = String(form.get('password') ?? '')
+    const confirm = String(form.get('confirm') ?? '')
+
+    try {
+      if (register) {
+        if (password !== confirm) {
+          setError('As senhas precisam ser iguais.')
+          return
+        }
+        await registerUser(name, email, password)
+      } else {
+        await login(email, password)
+      }
+      await navigateToRedirect(navigate)
+    } catch (err) {
+      setError(readApiError(err))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return { handleSubmit, error, isSubmitting }
+}
+
+async function navigateToRedirect(navigate: ReturnType<typeof useNavigate>) {
+  const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+  const path = redirect.split('?')[0]
+  const search = redirect.includes('?') ? Object.fromEntries(new URLSearchParams(redirect.split('?')[1])) : undefined
+
+  if (path === '/pagamento') return navigate({ to: '/pagamento', search })
+  if (path === '/confirmacao') return navigate({ to: '/confirmacao', search })
+  if (path === '/perfil') return navigate({ to: '/perfil', search })
+  if (path === '/carteiras') return navigate({ to: '/carteiras', search })
+  if (path === '/carrinho') return navigate({ to: '/carrinho', search })
+  return navigate({ to: '/', search: { q: '', rarity: 'todos', sort: 'recentes', page: 1 } })
+}
+
+function readApiError(error: unknown) {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    return error.response?.data.error.message ?? 'Nao foi possivel concluir a acao.'
+  }
+  return 'Nao foi possivel concluir a acao.'
 }
 
 export function AuthLayout({

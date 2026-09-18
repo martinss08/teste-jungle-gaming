@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { useCart } from '../cart/useCart'
 import { cn } from '../../lib/utils'
+import { useAuth } from '../auth/useAuth'
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -128,6 +129,7 @@ export function AppShell() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authOpen, setAuthOpen] = useState(false)
   const { itemCount } = useCart()
+  const { session, isAuthenticated, logout } = useAuth()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isMarket = pathname.startsWith('/nft/')
 
@@ -175,17 +177,23 @@ export function AppShell() {
                 </span>
               </span>
             </Link>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setAuthMode('login')
-                setAuthOpen(true)
-              }}
-            >
-              <UserRound size={15} />
-              Entrar
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Link to="/perfil" className="font-display text-sm font-bold text-primarySoft hover:text-primary">
+                  {session?.user.name}
+                </Link>
+                <Button type="button" size="sm" variant="secondary" onClick={() => void logout()}>
+                  Sair
+                </Button>
+              </>
+            ) : (
+              <Link to="/login" search={{ redirect: pathname }}>
+                <Button type="button" size="sm">
+                  <UserRound size={15} />
+                  Entrar
+                </Button>
+              </Link>
+            )}
           </div>
 
           <button
@@ -224,19 +232,18 @@ export function AppShell() {
                 {link.label}
               </Link>
             ))}
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              onClick={() => {
-                setOpen(false)
-                setAuthMode('login')
-                setAuthOpen(true)
-              }}
-            >
-              <UserRound size={16} />
-              Entrar ou cadastrar
-            </Button>
+            {isAuthenticated ? (
+              <Button type="button" variant="secondary" className="w-full" onClick={() => void logout()}>
+                Sair
+              </Button>
+            ) : (
+              <Link to="/login" search={{ redirect: pathname }} onClick={() => setOpen(false)}>
+                <Button type="button" variant="secondary" className="w-full">
+                  <UserRound size={16} />
+                  Entrar ou cadastrar
+                </Button>
+              </Link>
+            )}
           </nav>
         </div>
       </header>
