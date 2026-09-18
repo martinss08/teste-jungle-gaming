@@ -298,8 +298,8 @@ function MobileNftDetails({
 
         <h2 className="mt-4 text-sm font-black">Edicao:</h2>
         <div className="mt-2 flex gap-2 text-xs">
-          {['1/10', '1/10', '1/50', 'ABERTA'].map((edition) => (
-            <span key={edition} className={edition === '1/50' ? 'rounded-full border border-primary px-2 py-1 text-primarySoft' : 'rounded-full border border-border px-2 py-1 text-[#d1b38f]'}>
+          {['1/10', '1/10', '1/50', 'ABERTA'].map((edition, index) => (
+            <span key={`${edition}-${index}`} className={edition === '1/50' ? 'rounded-full border border-primary px-2 py-1 text-primarySoft' : 'rounded-full border border-border px-2 py-1 text-[#d1b38f]'}>
               {edition}
             </span>
           ))}

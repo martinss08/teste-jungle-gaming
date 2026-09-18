@@ -16,6 +16,22 @@ import { WalletsPage } from './pages/WalletsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import './styles.css'
 
+async function enableMocking() {
+  const shouldEnable =
+    import.meta.env.DEV ||
+    import.meta.env.VITE_ENABLE_MSW === 'true'
+
+  if (!shouldEnable) return
+
+  const { worker } = await import('./mocks/browser')
+  await worker.start({
+    onUnhandledRequest: 'bypass',
+    serviceWorker: {
+      url: '/mockServiceWorker.js',
+    },
+  })
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -109,6 +125,8 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+await enableMocking()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

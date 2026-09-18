@@ -46,3 +46,7 @@ temp/
 *.tmp
 *.swp
 *.swo
+
+# Local project notes
+PLANO_DESENVOLVIMENTO.md
+GUIA_EXPLICACAO_TECNICA.md
