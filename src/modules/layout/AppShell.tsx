@@ -1,6 +1,6 @@
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Heart, Home, Instagram, Linkedin, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { buttonVariants } from '../../components/ui/buttonVariants'
 import { Dialog } from '../../components/ui/Dialog'
@@ -11,9 +11,6 @@ import { AuthModalPage } from '../../pages/LoginPage'
 import { useRealtime } from '../realtime/useRealtime'
 import { defaultCatalogSearch } from '../catalog/search'
 
-// Paginas editoriais ficam fora do escopo: aparecem no menu, mas sem aparentar navegacao.
-const editorialLinks = ['Criadores', 'Aprenda']
-
 type AuthMode = 'login' | 'register'
 
 export function AppShell() {
@@ -21,26 +18,33 @@ export function AppShell() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authOpen, setAuthOpen] = useState(false)
   const [authRedirect, setAuthRedirect] = useState('/')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
   const { itemCount } = useCart()
   const { session, isAuthenticated, sessionExpired, logout } = useAuth()
   const { status: realtimeStatus } = useRealtime()
   const [announcement, setAnnouncement] = useState('')
-  const [hash, setHash] = useState(() => window.location.hash)
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const location = useRouterState({ select: (state) => state.location })
+  const pathname = location.pathname
+  const hash = location.hash
+  const currentSearch = location.search as Record<string, unknown>
+  const currentCatalogQuery = typeof currentSearch.q === 'string' ? currentSearch.q : ''
   const realtimeAnnouncement =
     realtimeStatus === 'connected'
       ? 'Atualizacoes em tempo real conectadas.'
       : realtimeStatus === 'reconnecting'
         ? 'Reconectando atualizacoes em tempo real.'
         : ''
-  const isHome = pathname === '/' && hash !== '#catalogo'
-  const isMarket = pathname.startsWith('/nft/') || (pathname === '/' && hash === '#catalogo')
-
-  useEffect(() => {
-    const handleHashChange = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
+  const isHome = pathname === '/' && hash !== 'catalogo'
+  const isMarket = pathname.startsWith('/nft/') || (pathname === '/' && hash === 'catalogo')
+  const navClass = (active: boolean) =>
+    cn(
+      'border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft',
+      active ? 'border-primary text-primary' : 'border-transparent text-foreground/62',
+    )
 
   useEffect(() => {
     const handleAuthRequired = (event: Event) => {
@@ -60,6 +64,34 @@ export function AppShell() {
     setAuthRedirect(pathname)
     setAuthOpen(true)
   }
+
+  const handleHeaderSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const q = searchTerm.trim()
+    setSearchTerm(q)
+    void navigate({
+      to: '/',
+      search: { ...defaultCatalogSearch, q },
+      hash: 'catalogo',
+    })
+  }
+
+  useEffect(() => {
+    if (pathname === '/') setSearchTerm(currentCatalogQuery)
+  }, [currentCatalogQuery, pathname])
+
+  useEffect(() => {
+    if (!searchOpen) return
+
+    searchInputRef.current?.focus()
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) setSearchOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [searchOpen])
 
   useEffect(() => {
     const handleRealtime = (event: Event) => {
@@ -94,27 +126,54 @@ export function AppShell() {
             <Link
               to="/"
               search={defaultCatalogSearch}
-              className={cn(
-                'border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft',
-                isHome ? 'border-primary text-primary' : 'border-transparent text-foreground/62',
-              )}
+              className={navClass(isHome)}
             >
               Inicio
             </Link>
-            <a href="/#catalogo" className={cn('border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/62')}>
+            <a href="/#catalogo" className={navClass(isMarket)}>
               Mercado
             </a>
-            {editorialLinks.map((label) => (
-              <span key={label} className="cursor-not-allowed border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/35" aria-disabled="true" title="Em breve">
-                {label}
-              </span>
-            ))}
+            <Link to="/criadores" className={navClass(pathname === '/criadores')}>Criadores</Link>
+            <Link to="/aprenda" className={navClass(pathname === '/aprenda')}>Aprenda</Link>
           </nav>
 
           <div className="hidden items-center gap-5 md:flex">
-            <Link to="/" search={defaultCatalogSearch} hash="catalogo" className="text-foreground/70 hover:text-primarySoft" aria-label="Buscar no catalogo">
-              <Search size={21} />
-            </Link>
+            <div ref={searchRef} className="flex h-9 items-center justify-end">
+              <form
+                role="search"
+                className={cn(
+                  'flex h-9 origin-right overflow-hidden rounded-sm border border-border bg-[#160b08] transition-all duration-200 ease-out',
+                  searchOpen ? 'w-56 opacity-100' : 'pointer-events-none w-0 border-transparent opacity-0',
+                )}
+                onSubmit={handleHeaderSearch}
+              >
+                <label htmlFor="header-search" className="sr-only">Buscar no catalogo</label>
+                <input
+                  id="header-search"
+                  ref={searchInputRef}
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') setSearchOpen(false)
+                  }}
+                  autoFocus={searchOpen}
+                  tabIndex={searchOpen ? 0 : -1}
+                  className="min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
+                  placeholder="Buscar no catalogo"
+                />
+                <button type="submit" className="grid w-9 shrink-0 place-items-center bg-primary text-[#160b08]" aria-label="Buscar" tabIndex={searchOpen ? 0 : -1}>
+                  <Search size={16} />
+                </button>
+              </form>
+              <button
+                type="button"
+                className={cn('text-foreground/70 transition hover:text-primarySoft', searchOpen && 'sr-only')}
+                aria-label="Abrir busca"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search size={21} />
+              </button>
+            </div>
             <Link to="/carrinho" aria-label={`Carrinho com ${itemCount} itens`}>
               <span className="relative inline-grid size-8 place-items-center text-foreground/70 hover:text-primarySoft">
                 <ShoppingCart size={21} />
@@ -124,22 +183,18 @@ export function AppShell() {
               </span>
             </Link>
             {isAuthenticated ? (
-              <>
-                <Link to="/perfil" className="font-display text-sm font-bold text-primarySoft hover:text-primary">
-                  {session?.user.name}
-                </Link>
-                <Link to="/carteiras" className="font-display text-sm font-bold text-foreground/70 hover:text-primarySoft" activeProps={{ className: 'text-primary' }}>
-                  Carteiras
-                </Link>
-                <Button type="button" size="sm" variant="secondary" onClick={() => void logout()}>
-                  Sair
-                </Button>
-              </>
+              <Link
+                to="/perfil"
+                className="grid size-9 place-items-center rounded-full border border-border text-primarySoft transition hover:border-primary hover:text-primary"
+                aria-label={`Abrir perfil de ${session?.user.name ?? 'usuario'}`}
+              >
+                <UserRound size={19} />
+              </Link>
             ) : (
-              <Link to="/login" search={{ redirect: pathname }} className={buttonVariants({ size: 'sm' })}>
+              <button type="button" className={buttonVariants({ size: 'sm' })} onClick={() => openAuth('login')}>
                 <UserRound size={15} />
                 Entrar
-              </Link>
+              </button>
             )}
           </div>
         </div>

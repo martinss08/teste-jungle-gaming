@@ -23,6 +23,7 @@ import type {
 } from '../contracts/api'
 import { SUPPORTED_NETWORKS } from '../contracts/api'
 import { buildNftReviews } from '../data/reviews'
+import { findCoupon } from '../data/coupons'
 import { compareEth } from '../lib/eth'
 import type { CartLine, Nft, NftTag, Rarity, Wallet } from '../types'
 import {
@@ -39,6 +40,7 @@ import {
   getState,
   hashPassword,
   listNfts,
+  listOwnedNfts,
   listUserWallets,
   mergeGuestCartIntoUser,
   persistState,
@@ -125,7 +127,16 @@ export const handlers = [
       bio: '',
       avatarUrl: `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.name)}`,
     }
-    state.wallets[user.id] = []
+    state.wallets[user.id] = [
+      {
+        id: `wallet-${crypto.randomUUID()}`,
+        label: 'Carteira principal',
+        address: `0x${crypto.randomUUID().replaceAll('-', '').padEnd(40, '0').slice(0, 40)}`,
+        network: 'Ethereum',
+        status: 'conectada',
+        kind: 'principal',
+      },
+    ]
     state.favorites[user.id] = []
     state.carts[user.id] = {
       items: [],
@@ -335,8 +346,10 @@ export const handlers = [
   http.post('/api/cart/coupon', async ({ request }) => {
     const body = await request.json() as ApplyCouponRequest
     const code = body.code.trim().toUpperCase()
-    if (code === 'EXPIRADO') return apiError('CONFLICT', 'Cupom expirado.', 409)
-    if (code !== 'KURIO10') return apiError('VALIDATION_ERROR', 'Cupom invalido.', 422, { code: 'Codigo promocional invalido.' })
+    const coupon = findCoupon(code)
+    if (!coupon) return apiError('VALIDATION_ERROR', 'Cupom invalido.', 422, { code: 'Codigo promocional invalido.' })
+    if (coupon.status === 'expirado') return apiError('CONFLICT', 'Cupom expirado.', 409)
+    if (coupon.status === 'usado') return apiError('CONFLICT', 'Cupom ja utilizado.', 409)
 
     const owner = getCartOwner(request)
     if (!owner) return expiredSession()
@@ -422,6 +435,12 @@ export const handlers = [
     const order = getOrderForUser(orderId, session.user.id)
     if (!order) return apiError('FORBIDDEN', 'Este pedido pertence a outra conta.', 403)
     return HttpResponse.json(order)
+  }),
+
+  http.get('/api/collection', ({ request }) => {
+    const session = resolveSession(request)
+    if (!session) return apiError('UNAUTHORIZED', 'Colecao exige autenticacao.', 401)
+    return HttpResponse.json({ items: listOwnedNfts(session.user.id) })
   }),
 
   // Conexao simulada: nao ha extensao real; o cenario decide se o usuario aprova ou recusa.

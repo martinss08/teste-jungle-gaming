@@ -1,18 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Save, WalletCards, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
-import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Skeleton } from '../components/ui/Skeleton'
-import { Input, Label, Select } from '../components/ui/Field'
+import { Input, Select } from '../components/ui/Field'
 import { SUPPORTED_NETWORKS, type WalletRequest } from '../contracts/api'
 import { parseApiError } from '../lib/apiError'
+import { cn } from '../lib/utils'
 import { createWallet, getWallets, updateWallet } from '../modules/account/api'
 import { useAuth } from '../modules/auth/useAuth'
 import type { Wallet, WalletKind } from '../types'
 
 type WalletErrors = Partial<Record<keyof WalletRequest, string>>
+const walletInputClass =
+  'min-h-10 rounded-sm border-[#4c261b] bg-transparent font-mono text-sm placeholder:text-[#b9966d] focus:border-primary'
 
 // Mesmas regras do servidor: redes EVM, endereco 0x + 40 hexadecimais.
 function validateWalletForm(form: WalletRequest): WalletErrors {
@@ -24,13 +26,27 @@ function validateWalletForm(form: WalletRequest): WalletErrors {
   return errors
 }
 
-function shortenAddress(address: string) {
-  return address.length > 14 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address
-}
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null
   return <p id={id} className="text-xs font-semibold text-red-200">{message}</p>
+}
+
+function WalletLabel({ htmlFor, children, required = true }: { htmlFor?: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="font-mono text-sm tracking-[0.03em] text-foreground">
+      {children}
+      {required && <span className="text-primary">*</span>}
+    </label>
+  )
+}
+
+function DisplayInput({ id, label, value, placeholder, required = true }: { id: string; label: string; value?: string; placeholder?: string; required?: boolean }) {
+  return (
+    <div className="space-y-2">
+      <WalletLabel htmlFor={id} required={required}>{label}</WalletLabel>
+      <Input id={id} value={value ?? ''} placeholder={placeholder} readOnly className={cn(walletInputClass, 'text-foreground/55')} />
+    </div>
+  )
 }
 
 function WalletForm({
@@ -45,7 +61,7 @@ function WalletForm({
   onDone?: () => void
 }) {
   const queryClient = useQueryClient()
-  const { expireSession } = useAuth()
+  const { session, expireSession } = useAuth()
   const isEdit = Boolean(wallet)
   const prefix = wallet ? `wallet-${wallet.id}` : 'wallet-new'
   const [form, setForm] = useState<WalletRequest>({
@@ -112,41 +128,29 @@ function WalletForm({
   const describedBy = (field: keyof WalletRequest) => (errors[field] ? `${prefix}-${field}-error` : undefined)
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="mt-5 grid gap-4">
+    <form noValidate onSubmit={handleSubmit} className="mt-8 grid gap-x-7 gap-y-6 md:grid-cols-2">
+      <DisplayInput id={`${prefix}-display-name`} label="Nome de exibicao" value={session?.user.name} />
       <div className="space-y-2">
-        <Label htmlFor={`${prefix}-label`}>Nome</Label>
+        <WalletLabel htmlFor={`${prefix}-label`}>Apelido da carteira</WalletLabel>
         <Input
           id={`${prefix}-label`}
           value={form.label}
           onChange={(event) => setField('label', event.target.value)}
           aria-invalid={Boolean(errors.label)}
           aria-describedby={describedBy('label')}
+          className={walletInputClass}
         />
         <FieldError id={`${prefix}-label-error`} message={errors.label} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${prefix}-address`}>Endereco</Label>
-        <Input
-          id={`${prefix}-address`}
-          value={form.address}
-          placeholder="0x..."
-          spellCheck={false}
-          autoCapitalize="off"
-          onChange={(event) => setField('address', event.target.value)}
-          aria-invalid={Boolean(errors.address)}
-          aria-describedby={describedBy('address')}
-          className="font-mono text-xs sm:text-sm"
-        />
-        <FieldError id={`${prefix}-address-error`} message={errors.address} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${prefix}-network`}>Rede</Label>
+        <WalletLabel htmlFor={`${prefix}-network`}>Rede</WalletLabel>
         <Select
           id={`${prefix}-network`}
           value={form.network}
           onChange={(event) => setField('network', event.target.value)}
           aria-invalid={Boolean(errors.network)}
           aria-describedby={describedBy('network')}
+          className={walletInputClass}
         >
           {SUPPORTED_NETWORKS.map((network) => (
             <option key={network} value={network}>{network}</option>
@@ -154,9 +158,37 @@ function WalletForm({
         </Select>
         <FieldError id={`${prefix}-network-error`} message={errors.network} />
       </div>
-      <fieldset className="space-y-2" aria-describedby={errors.kind ? `${prefix}-kind-error` : undefined}>
-        <legend className="text-xs font-semibold uppercase tracking-[0.18em] text-primarySoft">Tipo</legend>
-        <div className="flex flex-wrap gap-4 text-sm">
+      <DisplayInput id={`${prefix}-profile-name`} label="Nome do perfil" value={session?.user.name} />
+      <div className="space-y-2">
+        <WalletLabel htmlFor={`${prefix}-address`}>Endereco da carteira</WalletLabel>
+        <Input
+          id={`${prefix}-address`}
+          value={form.address}
+          placeholder="Endereco 0x da carteira"
+          spellCheck={false}
+          autoCapitalize="off"
+          onChange={(event) => setField('address', event.target.value)}
+          aria-invalid={Boolean(errors.address)}
+          aria-describedby={describedBy('address')}
+          className={cn(walletInputClass, 'text-xs sm:text-sm')}
+        />
+        <FieldError id={`${prefix}-address-error`} message={errors.address} />
+      </div>
+      <DisplayInput id={`${prefix}-secondary-reference`} label="Carteira secundaria" placeholder="ENS ou carteira secundaria (opcional)" required={false} />
+      <div className="space-y-2">
+        <WalletLabel htmlFor={`${prefix}-kind-select`}>Tipo de carteira</WalletLabel>
+        <Select
+          id={`${prefix}-kind-select`}
+          value={form.kind}
+          onChange={(event) => setField('kind', event.target.value as WalletKind)}
+          disabled={isLockedPrimary}
+          aria-describedby={errors.kind ? `${prefix}-kind-error` : undefined}
+          className={walletInputClass}
+        >
+          <option value="principal">Principal</option>
+          <option value="secundaria">Secundaria</option>
+        </Select>
+        <div className="sr-only">
           {(['principal', 'secundaria'] as const).map((kind) => (
             <label key={kind} className="flex items-center gap-2">
               <input
@@ -173,10 +205,21 @@ function WalletForm({
         </div>
         {isLockedPrimary && <p className="text-xs text-foreground/50">Para trocar, defina outra carteira como principal.</p>}
         <FieldError id={`${prefix}-kind-error`} message={errors.kind} />
-      </fieldset>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant={isEdit ? 'secondary' : 'primary'} disabled={!isDirty || walletMutation.isPending} aria-busy={walletMutation.isPending}>
-          <Save size={16} />
+      </div>
+      <DisplayInput id={`${prefix}-referral`} label="Codigo de indicacao" value="" />
+      <DisplayInput id={`${prefix}-email`} label="E-mail" value={session?.user.email} />
+      <div className="space-y-2">
+        <WalletLabel htmlFor={`${prefix}-ens`}>Nome ENS</WalletLabel>
+        <div className="grid grid-cols-[78px_minmax(0,1fr)] gap-3">
+          <Select aria-label="Sufixo ENS" defaultValue=".eth" className={walletInputClass}>
+            <option>.eth</option>
+            <option>.xyz</option>
+          </Select>
+          <Input id={`${prefix}-ens`} value="" readOnly className={cn(walletInputClass, 'text-foreground/55')} />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+        <Button type="submit" disabled={!isDirty || walletMutation.isPending} aria-busy={walletMutation.isPending}>
           {walletMutation.isPending ? 'Salvando...' : isEdit ? 'Salvar carteira' : 'Cadastrar carteira'}
         </Button>
         {onDone && !isEdit && (
@@ -192,7 +235,7 @@ function WalletForm({
   )
 }
 
-export function WalletsPage() {
+export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
   const { session } = useAuth()
   const userId = session?.user.id ?? ''
   const [isCreating, setIsCreating] = useState(false)
@@ -202,43 +245,47 @@ export function WalletsPage() {
     enabled: Boolean(userId),
   })
   const wallets = walletsQuery.data ?? []
+  const primaryWallet = wallets.find((wallet) => wallet.kind === 'principal') ?? wallets[0]
+  const secondaryWallets = wallets.filter((wallet) => wallet.id !== primaryWallet?.id)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className={embedded ? 'min-w-0' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8'}>
+      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primarySoft">Carteiras</span>
-          <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Gerencie enderecos</h1>
+          <h1 className={embedded ? 'font-display text-lg font-bold' : 'font-display text-3xl font-bold sm:text-4xl'}>
+            Carteira principal
+          </h1>
+          <p className="mt-2 text-sm text-[#caa677]">Estas carteiras ficam disponiveis no pagamento e para receber NFTs comprados.</p>
         </div>
-        <Button onClick={() => setIsCreating((value) => !value)} aria-expanded={isCreating} aria-controls="new-wallet">
+        <Button variant="ghost" className="px-0 text-primarySoft hover:bg-transparent hover:text-primary" onClick={() => setIsCreating((value) => !value)} aria-expanded={isCreating} aria-controls="new-wallet">
           {isCreating ? <X size={18} /> : <Plus size={18} />}
-          {isCreating ? 'Fechar' : 'Nova carteira'}
+          {isCreating ? 'Fechar' : 'Adicionar'}
         </Button>
       </div>
 
       {isCreating && (
-        <Card id="new-wallet" className="mb-5 p-5">
-          <h2 className="text-xl font-bold">Nova carteira</h2>
+        <section id="new-wallet" className="mb-10 border-b border-border pb-8">
+          <h2 className="font-display text-lg font-bold">Nova carteira</h2>
           <p className="mt-1 text-sm text-foreground/55">
             {wallets.length ? 'Cadastre como principal para substituir a atual, ou como secundaria.' : 'A primeira carteira sera a principal.'}
           </p>
           <WalletForm userId={userId} defaultKind={wallets.length ? 'secundaria' : 'principal'} onDone={() => setIsCreating(false)} />
-        </Card>
+        </section>
       )}
 
       {walletsQuery.isPending ? (
-        <div className="grid gap-5 md:grid-cols-2" aria-busy="true">
-          <Skeleton className="h-[420px] rounded-lg" />
-          <Skeleton className="h-[420px] rounded-lg" />
+        <div className="grid gap-6" aria-busy="true">
+          <Skeleton className="h-[430px] rounded-sm" />
+          <Skeleton className="h-[120px] rounded-sm" />
         </div>
       ) : walletsQuery.isError ? (
         <Card className="p-6 text-center">
           <p className="font-semibold">Nao foi possivel carregar suas carteiras.</p>
           <Button className="mt-4" onClick={() => void walletsQuery.refetch()}>Tentar novamente</Button>
         </Card>
-      ) : wallets.length === 0 ? (
+      ) : !primaryWallet ? (
         !isCreating && (
-          <Card className="p-6 text-center">
+          <Card className="p-6">
             <p className="font-semibold">Voce ainda nao tem carteiras cadastradas.</p>
             <Button className="mt-4" onClick={() => setIsCreating(true)}>
               <Plus size={16} />
@@ -247,30 +294,43 @@ export function WalletsPage() {
           </Card>
         )
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
-          {wallets.map((wallet) => (
-            <Card key={wallet.id} className="min-w-0 p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid size-11 shrink-0 place-items-center rounded-md bg-primary/15 text-primarySoft">
-                  <WalletCards size={21} />
-                </span>
-                <div className="min-w-0">
-                  <h2 className="break-words text-xl font-bold">{wallet.label}</h2>
-                  <p className="mt-1 text-sm text-foreground/55" title={wallet.address}>
-                    {shortenAddress(wallet.address)} · {wallet.network}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge>{wallet.kind === 'principal' ? 'Principal' : 'Secundaria'}</Badge>
-                    {wallet.status === 'pendente' && <Badge className="border-border bg-transparent text-foreground/60">Pendente de verificacao</Badge>}
-                  </div>
-                </div>
+        <div>
+          <section className="border-b border-border pb-8">
+            <WalletForm key={primaryWallet.id} userId={userId} wallet={primaryWallet} defaultKind="principal" />
+          </section>
+
+          <section className="mt-8">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div>
+                <h2 className="font-display text-lg font-bold">Carteira secundaria</h2>
+                <p className="mt-2 text-sm text-[#caa677]">
+                  {secondaryWallets.length ? 'Use uma carteira secundaria como alternativa de pagamento.' : 'Voce ainda nao adicionou uma carteira secundaria.'}
+                </p>
               </div>
-              {/* A chave inclui o tipo: quando outra carteira vira principal, o form reinicia com o valor atual. */}
-              <WalletForm key={wallet.id} userId={userId} wallet={wallet} defaultKind={wallet.kind} />
-            </Card>
-          ))}
+              <div className="flex items-center gap-2 font-mono text-sm">
+                <span className="size-4 rounded-full border-2 border-primary" aria-hidden="true" />
+                <span>Igual à carteira principal</span>
+                <button
+                  type="button"
+                  className={cn('font-display font-bold text-primarySoft hover:text-primary', isCreating && 'opacity-60')}
+                  onClick={() => setIsCreating(true)}
+                >
+                  Adicionar
+                </button>
+              </div>
+            </div>
+            {secondaryWallets.map((wallet) => (
+              <div key={wallet.id} className="mt-6 border-t border-border pt-6">
+                <WalletForm key={`${wallet.id}-${wallet.kind}`} userId={userId} wallet={wallet} defaultKind={wallet.kind} />
+              </div>
+            ))}
+          </section>
         </div>
       )}
     </div>
   )
+}
+
+export function WalletsPage() {
+  return <WalletsPanel />
 }

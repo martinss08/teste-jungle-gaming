@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react'
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { BenefitsSignup } from '../components/BenefitsSignup'
 import { NftCarousel } from '../components/NftCarousel'
 import { Button } from '../components/ui/Button'
@@ -14,6 +14,8 @@ import { useCart } from '../modules/cart/useCart'
 import { useAuth } from '../modules/auth/useAuth'
 import { AuthModalPage } from './LoginPage'
 import { defaultCatalogSearch } from '../modules/catalog/search'
+
+type AuthMode = 'login' | 'register'
 
 
 type CartRow = {
@@ -148,11 +150,11 @@ export function CartPage() {
   const { updateQuantity, removeItem, couponCode, isLoading, isUpdating, error } = useCart()
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
-  const checkoutScrollRef = useRef(0)
   const rows = useCartRows()
   const { coupon, setCoupon, submit: handleCouponSubmit } = useCouponForm()
   const canCheckout = useCanCheckout()
   const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
   const recommendationsQuery = useQuery({
     queryKey: ['nfts', 'em-alta'],
     queryFn: ({ signal }) => listNfts({ tag: 'em-alta', pageSize: 20 }, signal),
@@ -160,15 +162,8 @@ export function CartPage() {
   const recommendations = (recommendationsQuery.data?.items ?? [])
     .filter((nft) => !rows.some((row) => row.item.nftId === nft.id))
     .slice(0, 15)
-  const restoreCheckoutScroll = () => {
-    const scrollY = checkoutScrollRef.current
-    window.requestAnimationFrame(() => window.scrollTo(0, scrollY))
-    window.setTimeout(() => window.scrollTo(0, scrollY), 50)
-    window.setTimeout(() => window.scrollTo(0, scrollY), 150)
-  }
   const closeAuthModal = () => {
     setAuthOpen(false)
-    restoreCheckoutScroll()
   }
   const handleCheckout = () => {
     if (isAuthenticated) {
@@ -176,9 +171,8 @@ export function CartPage() {
       return
     }
 
-    checkoutScrollRef.current = window.scrollY
+    setAuthMode('login')
     setAuthOpen(true)
-    restoreCheckoutScroll()
   }
 
   return (
@@ -322,9 +316,10 @@ export function CartPage() {
       </div>
       {authOpen && (
         <AuthModalPage
-          mode="login"
+          mode={authMode}
           redirect="/pagamento"
           onClose={closeAuthModal}
+          onModeChange={setAuthMode}
           onSuccess={() => {
             setAuthOpen(false)
             void navigate({ to: '/pagamento' })

@@ -28,7 +28,7 @@ export function Dialog({ labelledBy, onClose, children, placement = 'center', cl
     const panel = panelRef.current
     const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
     const initial = panel?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled])') ?? focusables()[0]
-    ;(initial ?? panel)?.focus()
+    ;(initial ?? panel)?.focus({ preventScroll: true })
 
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -57,7 +57,7 @@ export function Dialog({ labelledBy, onClose, children, placement = 'center', cl
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = overflow
-      opener?.focus?.()
+      opener?.focus?.({ preventScroll: true })
     }
   }, [])
 

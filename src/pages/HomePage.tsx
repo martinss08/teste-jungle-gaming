@@ -219,7 +219,7 @@ function CatalogFilters({ search, onSearch, facets }: { search: CatalogSearch; o
     )
   }
 
-  const toggle = (field: 'rarity' | 'network', value: string) => onSearch({ [field]: search[field] === value ? 'todos' : value })
+  const toggleNetwork = (value: string) => onSearch({ network: search.network === value ? 'todos' : value })
   const bounds = {
     min: Math.floor(Number(facets.priceRange.minEth) * 100) / 100,
     max: Math.ceil(Number(facets.priceRange.maxEth) * 100) / 100,
@@ -238,15 +238,6 @@ function CatalogFilters({ search, onSearch, facets }: { search: CatalogSearch; o
       </div>
 
       <div>
-        <h2 className="font-display text-base font-bold">Raridade</h2>
-        <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
-          {facets.rarities.map(({ value, count }) => (
-            <FilterOption key={value} label={rarityLabels[value] ?? value} count={count} active={search.rarity === value} onClick={() => toggle('rarity', value)} />
-          ))}
-        </div>
-      </div>
-
-      <div>
         <h2 className="font-display text-base font-bold">Faixa de preco</h2>
         <PriceRangeFilter key={`${search.minPrice}-${search.maxPrice}`} search={search} onSearch={onSearch} bounds={bounds} />
       </div>
@@ -255,7 +246,7 @@ function CatalogFilters({ search, onSearch, facets }: { search: CatalogSearch; o
         <h2 className="font-display text-base font-bold">Rede</h2>
         <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
           {facets.networks.map(({ value, count }) => (
-            <FilterOption key={value} label={value} count={count} active={search.network === value} onClick={() => toggle('network', value)} />
+            <FilterOption key={value} label={value} count={count} active={search.network === value} onClick={() => toggleNetwork(value)} />
           ))}
         </div>
       </div>
@@ -495,32 +486,13 @@ export function HomePage() {
             />
             <SortSelect id="catalog-sort" search={search} onSearch={updateSearch} className="self-start sm:self-auto" />
           </div>
-          <form className="mt-5 flex max-w-xl flex-wrap gap-3" role="search" onSubmit={(event) => {
-            event.preventDefault()
-            const form = new FormData(event.currentTarget)
-            updateSearch({ q: String(form.get('q') ?? '') })
-          }}>
-            <div className="flex min-w-0 flex-1 overflow-hidden rounded-sm border border-border bg-[#160b08]">
-              <label htmlFor="catalog-search" className="sr-only">Buscar NFTs</label>
-              <input
-                id="catalog-search"
-                key={search.q}
-                name="q"
-                defaultValue={search.q}
-                className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
-                placeholder="Buscar por NFT, criador ou colecao"
-              />
-              <Button type="submit" className="rounded-none">
-                <Search size={15} />
-                Buscar
+          {hasActiveFilters && (
+            <div className="mt-5">
+              <Button type="button" variant="secondary" onClick={clearFilters}>
+                Limpar filtros
               </Button>
             </div>
-            {hasActiveFilters && (
-              <Button type="button" variant="secondary" onClick={clearFilters}>
-                Limpar
-              </Button>
-            )}
-          </form>
+          )}
 
           {results}
 

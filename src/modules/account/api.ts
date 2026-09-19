@@ -1,5 +1,6 @@
 import type {
   ChangePasswordRequest,
+  CollectionResponse,
   Profile,
   UpdateAvatarRequest,
   UpdateProfileRequest,
@@ -26,6 +27,11 @@ export async function updateAvatar(payload: UpdateAvatarRequest) {
 
 export async function changePassword(payload: ChangePasswordRequest) {
   const { data } = await api.post<{ ok: true }>('/profile/password', payload)
+  return data
+}
+
+export async function getCollection() {
+  const { data } = await api.get<CollectionResponse>('/collection')
   return data
 }
 

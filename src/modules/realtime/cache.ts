@@ -29,6 +29,7 @@ export function applyOrderUpdated(queryClient: QueryClient, userId: string, even
   queryClient.setQueryData<Order>(['order', userId, event.resource.id], (current) =>
     current && current.version >= event.version ? current : event.data,
   )
+  if (event.data.status === 'confirmado') void queryClient.invalidateQueries({ queryKey: ['collection', userId] })
 }
 
 // Resposta REST que chega depois de um evento mais novo nao deve regredir o cache.
@@ -39,7 +40,7 @@ export function keepNewer<T extends { version?: number }>(queryClient: QueryClie
 
 // Apos reconectar, eventos podem ter sido perdidos: recarrega da API o que estiver em tela.
 export function reconcileActiveQueries(queryClient: QueryClient) {
-  for (const queryKey of [['nfts'], ['nft'], ['cart'], ['quote'], ['order']]) {
+  for (const queryKey of [['nfts'], ['nft'], ['cart'], ['quote'], ['order'], ['collection']]) {
     void queryClient.invalidateQueries({ queryKey, refetchType: 'active' })
   }
 }

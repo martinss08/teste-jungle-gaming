@@ -219,6 +219,20 @@ export type Order = {
   updatedAt: string
 }
 
+export type OwnedNft = OrderReceiptItem & {
+  orderId: string
+  purchasedAt: string
+  walletLabel: string
+  walletAddress: string
+  network: string
+  transaction: string
+  explorerUrl: string
+}
+
+export type CollectionResponse = {
+  items: OwnedNft[]
+}
+
 export type CreateOrderRequest = {
   idempotencyKey: string
   quoteVersion: number

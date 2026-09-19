@@ -19,6 +19,9 @@ export function LoginPage() {
 // Mesmas regras do servidor; a API continua sendo a validacao final.
 function validateAuthForm(register: boolean, values: Record<AuthField, string>): AuthErrors {
   const errors: AuthErrors = {}
+  for (const field of Object.keys(values) as AuthField[]) {
+    if (values[field].length > 200) errors[field] = 'Use no maximo 200 caracteres.'
+  }
   if (register && values.name.trim().length < 2) errors.name = 'Informe pelo menos 2 caracteres.'
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) errors.email = 'Informe um e-mail valido.'
   if (register ? values.password.length < 6 : !values.password) {
@@ -194,6 +197,7 @@ function AuthModalInput({
           id={id}
           type={isPassword && visible ? 'text' : type}
           name={name}
+          maxLength={200}
           placeholder={placeholder}
           autoComplete={autoComplete}
           aria-invalid={Boolean(error)}

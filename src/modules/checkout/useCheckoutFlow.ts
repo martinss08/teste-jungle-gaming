@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import type { CreateOrderRequest, Order, QuoteResponse, WalletConnection, WalletProvider } from '../../contracts/api'
 import { parseApiError } from '../../lib/apiError'
@@ -7,7 +6,7 @@ import { compareEth } from '../../lib/eth'
 import { getProfile, getWallets } from '../account/api'
 import { useAuth } from '../auth/useAuth'
 import { useCart } from '../cart/useCart'
-import { connectWallet, createOrder } from './api'
+import { connectWallet, createOrder, getOrder } from './api'
 import { clearSubmittedAttempt, readSubmittedAttempt, saveSubmittedAttempt } from './attempt'
 
 export type CollectorForm = {
@@ -65,7 +64,6 @@ export function useCheckoutFlow() {
   const userId = session?.user.id ?? ''
   const cart = useCart()
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
 
   const profileQuery = useQuery({ queryKey: ['profile', userId], queryFn: getProfile, enabled: Boolean(userId) })
   const walletsQuery = useQuery({ queryKey: ['wallets', userId], queryFn: getWallets, enabled: Boolean(userId) })
@@ -87,6 +85,7 @@ export function useCheckoutFlow() {
   const [isRevalidating, setIsRevalidating] = useState(false)
   const [notice, setNotice] = useState<string | null>(recoveredAttempt ? 'Retomando sua compra em andamento...' : null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
   const submittingRef = useRef(false)
   const recoveredRef = useRef(false)
 
@@ -142,7 +141,8 @@ export function useCheckoutFlow() {
     setPendingAttempt(null)
     void queryClient.invalidateQueries({ queryKey: ['cart'] })
     void queryClient.invalidateQueries({ queryKey: ['quote'] })
-    void navigate({ to: '/confirmacao', search: { pedido: order.id }, replace: true })
+    void queryClient.invalidateQueries({ queryKey: ['collection', userId] })
+    setCompletedOrder(order)
   }
 
   const submit = (payload: CreateOrderRequest) => {
@@ -188,6 +188,25 @@ export function useCheckoutFlow() {
     submit(recoveredAttempt.payload)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- executa uma unica vez na montagem
   }, [])
+
+  useEffect(() => {
+    if (!completedOrder || completedOrder.status !== 'pendente') return
+    const interval = window.setInterval(() => {
+      getOrder(completedOrder.id)
+        .then((order) => {
+          setCompletedOrder(order)
+          if (order.status !== 'pendente') {
+            void queryClient.invalidateQueries({ queryKey: ['cart'] })
+            void queryClient.invalidateQueries({ queryKey: ['quote'] })
+            void queryClient.invalidateQueries({ queryKey: ['nfts'] })
+            void queryClient.invalidateQueries({ queryKey: ['nft'] })
+            void queryClient.invalidateQueries({ queryKey: ['collection', userId] })
+          }
+        })
+        .catch(() => undefined)
+    }, 1500)
+    return () => window.clearInterval(interval)
+  }, [completedOrder, queryClient])
 
   const goToReview = async () => {
     setNotice(null)
@@ -303,6 +322,8 @@ export function useCheckoutFlow() {
     submitError,
     notice,
     hasPendingAttempt: Boolean(pendingAttempt),
+    completedOrder,
+    dismissCompletedOrder: () => setCompletedOrder(null),
   }
 }
 

@@ -17,6 +17,8 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { WalletsPage } from './pages/WalletsPage'
+import { CreatorsPage } from './pages/CreatorsPage'
+import { LearnPage } from './pages/LearnPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import '@fontsource/inter/latin-400.css'
 import '@fontsource/inter/latin-500.css'
@@ -68,6 +70,18 @@ const cartRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/carrinho',
   component: CartPage,
+})
+
+const creatorsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/criadores',
+  component: CreatorsPage,
+})
+
+const learnRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/aprenda',
+  component: LearnPage,
 })
 
 const checkoutRoute = createRoute({
@@ -134,6 +148,8 @@ const walletsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   nftRoute,
+  creatorsRoute,
+  learnRoute,
   cartRoute,
   checkoutRoute,
   confirmationRoute,

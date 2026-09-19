@@ -4,6 +4,7 @@ import type {
   MockNftChange,
   MockScenario,
   Order,
+  OwnedNft,
   OrderStatus,
   Profile,
   QuoteLine,
@@ -13,6 +14,7 @@ import type {
   WalletProvider,
 } from '../contracts/api'
 import { nfts, wallets as fixtureWallets } from '../data/nfts'
+import { findCoupon } from '../data/coupons'
 import { addEth, compareEth, multiplyEth, percentOfEth, subtractEth } from '../lib/eth'
 import type { Nft, Wallet } from '../types'
 
@@ -497,6 +499,25 @@ export function getOrderForUser(orderId: string, userId: string) {
   return settleOrder(orderId)
 }
 
+export function listOwnedNfts(userId: string): OwnedNft[] {
+  return Object.values(state.orders)
+    .map((order) => settleOrder(order.id))
+    .filter((order): order is Order => Boolean(order && state.orderMeta[order.id]?.userId === userId && order.status === 'confirmado'))
+    .flatMap((order) =>
+      order.items.map((item) => ({
+        ...item,
+        orderId: order.id,
+        purchasedAt: order.updatedAt,
+        walletLabel: order.wallet.label,
+        walletAddress: order.wallet.address,
+        network: order.network,
+        transaction: order.transaction,
+        explorerUrl: order.explorerUrl,
+      })),
+    )
+    .sort((a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime())
+}
+
 export function findIdempotentOrder(idempotencyKey: string) {
   return state.idempotency[idempotencyKey]
 }
@@ -507,12 +528,23 @@ export function rememberIdempotentOrder(idempotencyKey: string, record: Idempote
 }
 
 export function findUserWallet(userId: string, walletId: string) {
-  return (state.wallets[userId] ?? []).find((wallet) => wallet.id === walletId)
+  return listUserWallets(userId).find((wallet) => wallet.id === walletId)
 }
 
 // Garante exatamente uma carteira principal (estados persistidos antigos nao tinham `kind`).
 export function listUserWallets(userId: string) {
   const wallets = (state.wallets[userId] ??= [])
+  if (!wallets.length) {
+    wallets.push({
+      id: `wallet-${crypto.randomUUID()}`,
+      label: 'Carteira principal',
+      address: `0x${crypto.randomUUID().replaceAll('-', '').padEnd(40, '0').slice(0, 40)}`,
+      network: 'Ethereum',
+      status: 'conectada',
+      kind: 'principal',
+    })
+    persistState()
+  }
   for (const wallet of wallets) wallet.kind ??= 'secundaria'
   if (wallets.length && !wallets.some((wallet) => wallet.kind === 'principal')) wallets[0].kind = 'principal'
   return wallets
@@ -548,6 +580,7 @@ function readState(): MockState {
 }
 
 function getDiscountEth(couponCode: string | undefined, subtotalEth: string) {
-  if (couponCode === 'KURIO10') return percentOfEth(subtotalEth, 10)
+  const coupon = couponCode ? findCoupon(couponCode) : undefined
+  if (coupon?.status === 'disponivel') return percentOfEth(subtotalEth, coupon.percent)
   return '0.000'
 }
