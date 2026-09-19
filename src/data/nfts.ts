@@ -110,16 +110,18 @@ export const wallets: Wallet[] = [
   {
     id: 'wallet-main',
     label: 'Carteira principal',
-    address: '0x8A2F...49B2',
+    address: '0x8A2F4c6e19D0b7a35E1f2C9d4B8a6E0f3c7D49B2',
     network: 'Ethereum',
     status: 'conectada',
+    kind: 'principal',
   },
   {
     id: 'wallet-secondary',
     label: 'Carteira secundaria',
-    address: '0x3D77...91FA',
+    address: '0x3D77b1E9a4c2F06d8B5e3A7c1D9f4E2b6A0c91FA',
     network: 'Polygon',
     status: 'pendente',
+    kind: 'secundaria',
   },
 ]
 

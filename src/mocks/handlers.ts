@@ -9,9 +9,11 @@ import type {
   LoginRequest,
   MockNftChange,
   RegisterRequest,
+  UpdateAvatarRequest,
   UpdateCartItemRequest,
   UpdateProfileRequest,
   WalletConnection,
+  WalletListResponse,
   WalletRequest,
 } from '../contracts/api'
 import { SUPPORTED_NETWORKS } from '../contracts/api'
@@ -31,6 +33,7 @@ import {
   getState,
   hashPassword,
   listNfts,
+  listUserWallets,
   mergeGuestCartIntoUser,
   persistState,
   rememberIdempotentOrder,
@@ -38,7 +41,9 @@ import {
   resetState,
   resolveSession,
   reviewCart,
+  setPrimaryWallet,
   setScenario,
+  syncUserIdentity,
   touchCart,
   updateNft,
 } from './state'
@@ -387,13 +392,46 @@ export const handlers = [
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Perfil exige autenticacao.', 401)
     const body = await request.json() as UpdateProfileRequest
-    const fields: Record<string, string> = {}
-    if (body.email !== undefined && !body.email.includes('@')) fields.email = 'Informe um e-mail valido.'
-    if (body.name !== undefined && body.name.trim().length < 2) fields.name = 'Informe pelo menos 2 caracteres.'
-    if (Object.keys(fields).length) return apiError('VALIDATION_ERROR', 'Verifique os campos informados.', 422, fields)
+    const state = getState()
+    const current = state.profiles[session.user.id]
+    const next = {
+      ...current,
+      name: body.name?.trim() ?? current.name,
+      email: body.email?.trim().toLowerCase() ?? current.email,
+      username: body.username?.trim() ?? current.username,
+      bio: body.bio?.trim() ?? current.bio,
+    }
+
+    const fields = validateProfile(next)
+    if (!fields.email && state.users.some((user) => user.id !== session.user.id && user.email === next.email)) {
+      fields.email = 'E-mail ja cadastrado por outra conta.'
+    }
+    if (!fields.username && Object.values(state.profiles).some((profile) => profile.userId !== session.user.id && profile.username === next.username)) {
+      fields.username = 'Nome de usuario indisponivel.'
+    }
+    if (Object.keys(fields).length) {
+      const conflict = Object.values(fields).some((message) => message.includes('cadastrado') || message.includes('indisponivel'))
+      return apiError(conflict ? 'CONFLICT' : 'VALIDATION_ERROR', 'Verifique os campos informados.', conflict ? 409 : 422, fields)
+    }
+
+    state.profiles[session.user.id] = next
+    syncUserIdentity(session.user.id, { name: next.name, email: next.email })
+    persistState()
+    return HttpResponse.json(next)
+  }),
+
+  http.post('/api/profile/avatar', async ({ request }) => {
+    const session = resolveSession(request)
+    if (!session) return apiError('UNAUTHORIZED', 'Perfil exige autenticacao.', 401)
+    const body = await request.json() as UpdateAvatarRequest
+    const match = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.exec(body.dataUrl ?? '')
+    if (!match) return apiError('VALIDATION_ERROR', 'Formato de imagem invalido.', 422, { avatar: 'Envie uma imagem PNG, JPEG ou WebP.' })
+    if (body.dataUrl.length > maxAvatarDataUrlLength) {
+      return apiError('VALIDATION_ERROR', 'Imagem muito grande.', 422, { avatar: 'A imagem processada deve ter ate 150 KB.' })
+    }
 
     const state = getState()
-    state.profiles[session.user.id] = { ...state.profiles[session.user.id], ...body }
+    state.profiles[session.user.id] = { ...state.profiles[session.user.id], avatarUrl: body.dataUrl }
     persistState()
     return HttpResponse.json(state.profiles[session.user.id])
   }),
@@ -407,8 +445,11 @@ export const handlers = [
     if (!user || user.passwordHash !== hashPassword(body.currentPassword)) {
       return apiError('VALIDATION_ERROR', 'Senha atual invalida.', 422, { currentPassword: 'Senha atual incorreta.' })
     }
-    if (body.newPassword.length < 6) {
+    if (!body.newPassword || body.newPassword.length < 6) {
       return apiError('VALIDATION_ERROR', 'Senha fraca.', 422, { newPassword: 'Informe pelo menos 6 caracteres.' })
+    }
+    if (body.newPassword === body.currentPassword) {
+      return apiError('VALIDATION_ERROR', 'Senha repetida.', 422, { newPassword: 'A nova senha deve ser diferente da atual.' })
     }
     user.passwordHash = hashPassword(body.newPassword)
     persistState()
@@ -418,26 +459,29 @@ export const handlers = [
   http.get('/api/wallets', ({ request }) => {
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Carteiras exigem autenticacao.', 401)
-    return HttpResponse.json({ items: getState().wallets[session.user.id] ?? [] })
+    const response: WalletListResponse = { items: listUserWallets(session.user.id) }
+    return HttpResponse.json(response)
   }),
 
   http.post('/api/wallets', async ({ request }) => {
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Carteiras exigem autenticacao.', 401)
     const body = await request.json() as WalletRequest
-    const validation = validateWallet(body)
-    if (Object.keys(validation).length) return apiError('VALIDATION_ERROR', 'Verifique os campos da carteira.', 422, validation)
+    const wallets = listUserWallets(session.user.id)
+    const validation = validateWallet(body, wallets)
+    if (Object.keys(validation).length) return walletValidationError(validation)
 
     const wallet: Wallet = {
       id: `wallet-${crypto.randomUUID()}`,
-      label: body.label,
-      address: body.address,
+      label: body.label.trim(),
+      address: body.address.trim(),
       network: body.network,
       status: 'conectada',
+      // A primeira carteira do usuario e sempre a principal.
+      kind: wallets.length ? body.kind : 'principal',
     }
-    const state = getState()
-    state.wallets[session.user.id] ??= []
-    state.wallets[session.user.id].push(wallet)
+    wallets.push(wallet)
+    if (wallet.kind === 'principal') setPrimaryWallet(session.user.id, wallet.id)
     persistState()
     return HttpResponse.json(wallet, { status: 201 })
   }),
@@ -446,11 +490,26 @@ export const handlers = [
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Carteiras exigem autenticacao.', 401)
     const body = await request.json() as Partial<WalletRequest>
-    const state = getState()
-    const wallets = state.wallets[session.user.id] ?? []
+    const wallets = listUserWallets(session.user.id)
     const wallet = wallets.find((item) => item.id === params.walletId)
     if (!wallet) return apiError('NOT_FOUND', 'Carteira nao encontrada.', 404)
-    Object.assign(wallet, body)
+
+    const next: WalletRequest = {
+      label: body.label?.trim() ?? wallet.label,
+      address: body.address?.trim() ?? wallet.address,
+      network: body.network ?? wallet.network,
+      kind: body.kind ?? wallet.kind,
+    }
+    if (wallet.kind === 'principal' && next.kind === 'secundaria') {
+      return apiError('VALIDATION_ERROR', 'Defina outra carteira como principal primeiro.', 422, {
+        kind: 'Deve existir uma carteira principal. Promova outra carteira para trocar.',
+      })
+    }
+    const validation = validateWallet(next, wallets.filter((item) => item.id !== wallet.id))
+    if (Object.keys(validation).length) return walletValidationError(validation)
+
+    Object.assign(wallet, next)
+    if (next.kind === 'principal') setPrimaryWallet(session.user.id, wallet.id)
     persistState()
     return HttpResponse.json(wallet)
   }),
@@ -496,12 +555,34 @@ function validateRegister(body: RegisterRequest) {
   return fields
 }
 
-function validateWallet(body: WalletRequest) {
+const maxAvatarDataUrlLength = 200_000 // ~150 KB de imagem apos base64
+
+function validateProfile(profile: { name: string; email: string; username: string; bio: string }) {
   const fields: Record<string, string> = {}
-  if (!body.label || body.label.trim().length < 2) fields.label = 'Informe um nome para a carteira.'
-  if (!body.address || !/^0x/i.test(body.address)) fields.address = 'Informe um endereco 0x.'
-  if (!body.network) fields.network = 'Selecione uma rede.'
+  if (profile.name.length < 2 || profile.name.length > 60) fields.name = 'Informe de 2 a 60 caracteres.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) fields.email = 'Informe um e-mail valido.'
+  if (!/^[a-z0-9._]{3,24}$/.test(profile.username)) fields.username = 'Use 3 a 24 letras minusculas, numeros, ponto ou _.'
+  if (profile.bio.length > 280) fields.bio = 'Use no maximo 280 caracteres.'
   return fields
+}
+
+// Redes suportadas sao EVM: endereco 0x + 40 caracteres hexadecimais.
+function validateWallet(body: WalletRequest, otherWallets: Wallet[]) {
+  const fields: Record<string, string> = {}
+  const address = body.address?.trim() ?? ''
+  if (!body.label || body.label.trim().length < 2 || body.label.trim().length > 40) fields.label = 'Informe um nome de 2 a 40 caracteres.'
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) fields.address = 'Informe um endereco 0x com 40 caracteres hexadecimais.'
+  if (!SUPPORTED_NETWORKS.includes(body.network as (typeof SUPPORTED_NETWORKS)[number])) fields.network = 'Selecione uma rede suportada.'
+  if (body.kind !== 'principal' && body.kind !== 'secundaria') fields.kind = 'Informe se a carteira e principal ou secundaria.'
+  if (!fields.address && otherWallets.some((wallet) => wallet.address.toLowerCase() === address.toLowerCase() && wallet.network === body.network)) {
+    fields.address = 'Esta carteira ja esta cadastrada nesta rede.'
+  }
+  return fields
+}
+
+function walletValidationError(fields: Record<string, string>) {
+  const duplicated = fields.address?.includes('ja esta cadastrada')
+  return apiError(duplicated ? 'CONFLICT' : 'VALIDATION_ERROR', 'Verifique os campos da carteira.', duplicated ? 409 : 422, fields)
 }
 
 function positiveNumber(value: string | null, fallback: number) {

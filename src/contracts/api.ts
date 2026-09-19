@@ -202,15 +202,22 @@ export type Profile = {
   avatarUrl: string
 }
 
-export type UpdateProfileRequest = Partial<Pick<Profile, 'name' | 'email' | 'username' | 'bio' | 'avatarUrl'>>
+export type UpdateProfileRequest = Partial<Pick<Profile, 'name' | 'email' | 'username' | 'bio'>>
+
+// Upload simulado: a imagem ja redimensionada no cliente trafega como data URL.
+export type UpdateAvatarRequest = {
+  dataUrl: string
+}
 
 export type ChangePasswordRequest = {
   currentPassword: string
   newPassword: string
 }
 
-export type WalletRequest = Omit<Wallet, 'id' | 'status'> & {
-  kind: 'principal' | 'secundaria'
+export type WalletRequest = Omit<Wallet, 'id' | 'status'>
+
+export type WalletListResponse = {
+  items: Wallet[]
 }
 
 export type MockNftChange = {

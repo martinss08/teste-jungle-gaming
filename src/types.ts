@@ -22,10 +22,14 @@ export type CartLine = {
   quantity: number
 }
 
+export type WalletKind = 'principal' | 'secundaria'
+
 export type Wallet = {
   id: string
   label: string
   address: string
   network: string
   status: 'conectada' | 'pendente'
+  // Cada usuario tem exatamente uma carteira principal.
+  kind: WalletKind
 }

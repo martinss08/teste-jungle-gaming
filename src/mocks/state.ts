@@ -107,14 +107,15 @@ function createInitialState(): MockState {
       },
     },
     wallets: {
-      'user-julia': fixtureWallets,
+      'user-julia': fixtureWallets.map((wallet) => ({ ...wallet })),
       'user-caio': [
         {
           id: 'wallet-caio-main',
           label: 'Carteira principal',
-          address: '0xA91F...E82C',
+          address: '0xA91F3b7C2e8D4a06F5c1B9e7D3a2C8f4E6b0E82C',
           network: 'Ethereum',
           status: 'conectada',
+          kind: 'principal',
         },
       ],
     },
@@ -457,6 +458,29 @@ export function rememberIdempotentOrder(idempotencyKey: string, record: Idempote
 
 export function findUserWallet(userId: string, walletId: string) {
   return (state.wallets[userId] ?? []).find((wallet) => wallet.id === walletId)
+}
+
+// Garante exatamente uma carteira principal (estados persistidos antigos nao tinham `kind`).
+export function listUserWallets(userId: string) {
+  const wallets = (state.wallets[userId] ??= [])
+  for (const wallet of wallets) wallet.kind ??= 'secundaria'
+  if (wallets.length && !wallets.some((wallet) => wallet.kind === 'principal')) wallets[0].kind = 'principal'
+  return wallets
+}
+
+export function setPrimaryWallet(userId: string, walletId: string) {
+  for (const wallet of listUserWallets(userId)) {
+    wallet.kind = wallet.id === walletId ? 'principal' : 'secundaria'
+  }
+}
+
+// Nome e e-mail tambem vivem no usuario e nas sessoes ativas (exibidos no cabecalho).
+export function syncUserIdentity(userId: string, identity: { name: string; email: string }) {
+  const user = state.users.find((item) => item.id === userId)
+  if (user) Object.assign(user, identity)
+  for (const session of Object.values(state.sessions)) {
+    if (session.user.id === userId) session.user = { ...session.user, ...identity }
+  }
 }
 
 function readState(): MockState {
