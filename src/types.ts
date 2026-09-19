@@ -1,5 +1,7 @@
 export type Rarity = 'comum' | 'raro' | 'epico' | 'lendario'
 
+export type NftTag = 'lancamento' | 'em-alta'
+
 export type Nft = {
   id: string
   title: string
@@ -13,9 +15,13 @@ export type Nft = {
   edition: string
   network: string
   hero: string
+  gallery?: string[]
   accent: string
   description: string
   traits: string[]
+  listedAt: string
+  featured?: boolean
+  tags?: NftTag[]
   // Versao do recurso na API; eventos em tempo real so sao aplicados se forem mais novos.
   version?: number
 }

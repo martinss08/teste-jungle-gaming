@@ -1,55 +1,55 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ChevronLeft, ChevronRight, Heart, Home, Search, ShoppingCart, SlidersHorizontal, UserRound } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import blogImage1 from '../assets/kurio-ape-1.png'
+import blogImage2 from '../assets/kurio-ape-2.png'
+import blogImage3 from '../assets/kurio-ape-3.png'
+import blogImage4 from '../assets/kurio-ape-0.png'
+import { BenefitsSignup } from '../components/BenefitsSignup'
 import { Button } from '../components/ui/Button'
-import { nfts } from '../data/nfts'
-import type { Nft } from '../types'
+import { buttonVariants } from '../components/ui/buttonVariants'
+import { Dialog } from '../components/ui/Dialog'
+import { Skeleton } from '../components/ui/Skeleton'
+import type { CatalogFacetsResponse } from '../contracts/api'
 import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
-import { useCart } from '../modules/cart/useCart'
-import { listNfts } from '../modules/catalog/api'
-import { useProtectedAction } from '../modules/auth/useProtectedAction'
+import type { Nft } from '../types'
+import { getCatalogFacets, listNfts } from '../modules/catalog/api'
+import { type CatalogSearch, defaultCatalogSearch, toNftListParams } from '../modules/catalog/search'
+import { useFavorites } from '../modules/catalog/useFavorites'
 
-type HomeSearch = {
-  q: string
-  rarity: string
-  category: string
-  minPrice: string
-  maxPrice: string
-  sort: string
-  page: number
+type UpdateSearch = (next: Partial<CatalogSearch>) => void
+
+const pageSize = 9
+
+const rarityLabels: Record<string, string> = {
+  comum: 'Comum',
+  raro: 'Raro',
+  epico: 'Epico',
+  lendario: 'Lendario',
 }
 
-const categoryLabels = [
-  'Arte digital',
-  'Fotografia',
-  'Musica',
-  'Arte 3D',
-  'Colecionaveis',
-  'Generativa',
-  'Jogos',
-  'Assinaturas',
-  'Utilidade',
+const catalogTabs = [
+  { value: 'todos', label: 'Todos os NFTs' },
+  { value: 'lancamento', label: 'Novos lancamentos' },
+  { value: 'em-alta', label: 'Em alta' },
+]
+
+const sortOptions = [
+  { value: 'recentes', label: 'Mais recentes' },
+  { value: 'preco-menor', label: 'Mais barato' },
+  { value: 'preco-maior', label: 'Mais caro' },
 ]
 
 const blogPosts = [
-  ['Como funciona a propriedade de NFTs', 'Aprenda a colecionar, negociar e verificar ativos digitais.'],
-  ['10 artistas digitais para acompanhar', 'Conheca criadores que moldam a cultura digital.'],
-  ['Raridade, atributos e procedencia', 'Entenda raridade, procedencia, direitos autorais e utilidade.'],
-  ['Como proteger sua carteira', 'Proteja sua carteira, seus ativos e sua identidade.'],
-]
-
-const sortOptions: Array<{ value: HomeSearch['sort']; label: string }> = [
-  { value: 'recentes', label: 'Recentes' },
-  { value: 'preco-maior', label: 'Mais caro' },
-  { value: 'preco-menor', label: 'Mais barato' },
+  ['Como funciona a propriedade de NFTs', 'Aprenda a colecionar, negociar e verificar ativos digitais.', blogImage1],
+  ['10 artistas digitais para acompanhar', 'Conheca criadores que moldam a cultura digital.', blogImage2],
+  ['Raridade, atributos e procedencia', 'Entenda raridade, procedencia, direitos autorais e utilidade.', blogImage3],
+  ['Como proteger sua carteira', 'Proteja sua carteira, seus ativos e sua identidade.', blogImage4],
 ]
 
 const priceStep = 0.01
-const catalogPrices = nfts.map((nft) => Number(nft.priceEth)).filter(Number.isFinite)
-const catalogPriceMin = Math.floor(Math.min(...catalogPrices) * 100) / 100
-const catalogPriceMax = Math.ceil(Math.max(...catalogPrices) * 100) / 100
 
 function parsePrice(value: string, fallback: number) {
   const cleaned = value.replace(/^"|"$/g, '').replace(',', '.').trim()
@@ -58,21 +58,8 @@ function parsePrice(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-function clampPrice(value: number) {
-  return Math.min(Math.max(value, catalogPriceMin), catalogPriceMax)
-}
-
 function formatPrice(value: number) {
   return value.toFixed(2).replace('.', ',')
-}
-
-function getInitialPriceRange(search: HomeSearch) {
-  const min = clampPrice(parsePrice(search.minPrice, catalogPriceMin))
-  const max = clampPrice(parsePrice(search.maxPrice, catalogPriceMax))
-  return {
-    min: Math.min(min, max),
-    max: Math.max(min, max),
-  }
 }
 
 function getVisiblePages(currentPage: number, totalPages: number) {
@@ -82,9 +69,19 @@ function getVisiblePages(currentPage: number, totalPages: number) {
   return Array.from({ length: count }, (_, index) => start + index)
 }
 
-function MarketCard({ nft, index }: { nft: Nft; index: number }) {
-  const code = String((index + 1) * 42).padStart(3, '0')
+function countActiveFilters(search: CatalogSearch) {
+  return [
+    search.q.trim(),
+    search.category !== 'todos',
+    search.rarity !== 'todos',
+    search.network !== 'todos',
+    search.tag !== 'todos',
+    search.minPrice || search.maxPrice,
+    search.sort !== defaultCatalogSearch.sort,
+  ].filter(Boolean).length
+}
 
+function MarketCard({ nft }: { nft: Nft }) {
   return (
     <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="group block">
       <div className="overflow-hidden rounded-sm bg-[#28150f]">
@@ -97,7 +94,7 @@ function MarketCard({ nft, index }: { nft: Nft; index: number }) {
           />
         </div>
       </div>
-      <h3 className="mt-3 truncate text-sm font-bold text-[#b39a81]">{nft.title.replace(/#\d+/, `#${code}`)}</h3>
+      <h3 className="mt-3 truncate text-sm font-bold text-[#b39a81]">{nft.title}</h3>
       <p className="font-display text-base font-bold text-primarySoft">
         {formatEth(nft.priceEth)}
         {nft.previousPriceEth && <span className="ml-2 text-sm text-[#7b6554] line-through">{formatEth(nft.previousPriceEth)}</span>}
@@ -107,57 +104,57 @@ function MarketCard({ nft, index }: { nft: Nft; index: number }) {
   )
 }
 
-function PromoTile({ nft, reverse = false }: { nft: Nft; reverse?: boolean }) {
+function PromoTile({ nft, title, description, search, reverse = false }: {
+  nft?: Nft
+  title: string
+  description: string
+  search: CatalogSearch
+  reverse?: boolean
+}) {
   return (
     <div className="grid min-h-[190px] overflow-hidden rounded-sm bg-card sm:grid-cols-2">
       <div className={reverse ? 'sm:order-2' : ''}>
-        <img src={nft.hero} alt={nft.title} className="h-full min-h-[170px] w-full object-cover" loading="lazy" />
+        {nft ? (
+          <img src={nft.hero} alt={nft.title} className="h-full min-h-[170px] w-full object-cover" loading="lazy" />
+        ) : (
+          <Skeleton className="h-full min-h-[170px] rounded-none" />
+        )}
       </div>
       <div className="flex flex-col items-center justify-center p-6 text-center">
-        <h3 className="max-w-[17rem] font-display text-lg font-bold leading-tight text-foreground">
-          {reverse ? 'Arte digital selecionada e muito mais' : 'Lancamentos genesis de edicao limitada'}
-        </h3>
-        <p className="mt-3 text-sm leading-6 text-[#8e7764]">
-          {reverse
-            ? 'Explore novos artistas, colecoes verificadas e obras digitais que definem a cultura.'
-            : 'Colecione edicoes escassas diretamente dos criadores antes da revelacao publica.'}
-        </p>
-        <Button size="sm" className="mt-4">
+        <h3 className="max-w-[17rem] font-display text-lg font-bold leading-tight text-foreground">{title}</h3>
+        <p className="mt-3 text-sm leading-6 text-[#8e7764]">{description}</p>
+        <Link to="/" search={search} hash="catalogo" className={buttonVariants({ size: 'sm', className: 'mt-4' })}>
           Explorar
           <ArrowRight size={14} />
-        </Button>
+        </Link>
       </div>
     </div>
   )
 }
 
-function PriceRangeFilter({
-  search,
-  onSearch,
-}: {
-  search: HomeSearch
-  onSearch: (next: Partial<HomeSearch>) => void
+function PriceRangeFilter({ search, onSearch, bounds }: {
+  search: CatalogSearch
+  onSearch: UpdateSearch
+  bounds: { min: number; max: number }
 }) {
-  const [minValue, setMinValue] = useState(() => getInitialPriceRange(search).min)
-  const [maxValue, setMaxValue] = useState(() => getInitialPriceRange(search).max)
+  const clamp = (value: number) => Math.min(Math.max(value, bounds.min), bounds.max)
+  const initialMin = clamp(parsePrice(search.minPrice, bounds.min))
+  const initialMax = clamp(parsePrice(search.maxPrice, bounds.max))
+  const [minValue, setMinValue] = useState(() => Math.min(initialMin, initialMax))
+  const [maxValue, setMaxValue] = useState(() => Math.max(initialMin, initialMax))
 
-  const rangeSize = catalogPriceMax - catalogPriceMin || 1
-  const minPercent = ((minValue - catalogPriceMin) / rangeSize) * 100
-  const maxPercent = ((maxValue - catalogPriceMin) / rangeSize) * 100
+  const rangeSize = bounds.max - bounds.min || 1
+  const minPercent = ((minValue - bounds.min) / rangeSize) * 100
+  const maxPercent = ((maxValue - bounds.min) / rangeSize) * 100
 
   return (
     <form
       className="mt-5 grid gap-3"
       onSubmit={(event) => {
         event.preventDefault()
-        onSearch({
-          minPrice: minValue.toFixed(2),
-          maxPrice: maxValue.toFixed(2),
-        })
+        onSearch({ minPrice: minValue.toFixed(2), maxPrice: maxValue.toFixed(2) })
       }}
     >
-      <input type="hidden" name="minPrice" value={minValue.toFixed(2)} />
-      <input type="hidden" name="maxPrice" value={maxValue.toFixed(2)} />
       <div className="relative h-6">
         <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#7b4a27]" />
         <div
@@ -167,28 +164,22 @@ function PriceRangeFilter({
         <input
           aria-label="Preco minimo"
           className="price-range-input"
-          min={catalogPriceMin}
-          max={catalogPriceMax}
+          min={bounds.min}
+          max={bounds.max}
           step={priceStep}
           type="range"
           value={minValue}
-          onChange={(event) => {
-            const next = Math.min(Number(event.target.value), maxValue)
-            setMinValue(next)
-          }}
+          onChange={(event) => setMinValue(Math.min(Number(event.target.value), maxValue))}
         />
         <input
           aria-label="Preco maximo"
           className="price-range-input"
-          min={catalogPriceMin}
-          max={catalogPriceMax}
+          min={bounds.min}
+          max={bounds.max}
           step={priceStep}
           type="range"
           value={maxValue}
-          onChange={(event) => {
-            const next = Math.max(Number(event.target.value), minValue)
-            setMaxValue(next)
-          }}
+          onChange={(event) => setMaxValue(Math.max(Number(event.target.value), minValue))}
         />
       </div>
       <p className="text-xs font-bold text-[#b89c85]">
@@ -201,60 +192,242 @@ function PriceRangeFilter({
   )
 }
 
-export function HomePage() {
-  const search = useSearch({ from: '/' }) as HomeSearch
-  const navigate = useNavigate({ from: '/' })
-  const [sortOpen, setSortOpen] = useState(false)
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ['nfts', search],
-    queryFn: ({ signal }) => listNfts({
-      q: search.q,
-      rarity: search.rarity as 'todos',
-      category: search.category === 'todos' ? undefined : search.category,
-      minPrice: search.minPrice,
-      maxPrice: search.maxPrice,
-      sort: search.sort as 'recentes' | 'preco-menor' | 'preco-maior',
-      page: search.page,
-      pageSize: 9,
-    }, signal),
-  })
-  const featured = nfts[0]
-  const apiItems = data?.items ?? []
-  const totalPages = data?.totalPages ?? 1
-  const visiblePages = getVisiblePages(search.page, totalPages)
-  const categoryCounts = categoryLabels.map((label) => ({
-    label,
-    count: nfts.filter((nft) => nft.category === label).length,
-  }))
+function FilterOption({ label, count, active, onClick }: { label: string; count?: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex items-center justify-between text-left transition hover:text-primarySoft',
+        active && 'text-primarySoft underline underline-offset-4',
+      )}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      {count !== undefined && <span className="text-primarySoft">({count})</span>}
+    </button>
+  )
+}
 
-  const updateSearch = (next: Partial<HomeSearch>) => {
-    navigate({
+// Filtros compartilhados entre a lateral desktop e o drawer mobile; contagens e limites vem da API.
+function CatalogFilters({ search, onSearch, facets }: { search: CatalogSearch; onSearch: UpdateSearch; facets?: CatalogFacetsResponse }) {
+  if (!facets) {
+    return (
+      <div className="grid gap-4" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-5" />)}
+      </div>
+    )
+  }
+
+  const toggle = (field: 'rarity' | 'network', value: string) => onSearch({ [field]: search[field] === value ? 'todos' : value })
+  const bounds = {
+    min: Math.floor(Number(facets.priceRange.minEth) * 100) / 100,
+    max: Math.ceil(Number(facets.priceRange.maxEth) * 100) / 100,
+  }
+
+  return (
+    <div className="grid gap-10">
+      <div>
+        <h2 className="font-display text-base font-bold">Categorias</h2>
+        <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
+          <FilterOption label="Todas" count={facets.total} active={search.category === 'todos'} onClick={() => onSearch({ category: 'todos' })} />
+          {facets.categories.map(({ value, count }) => (
+            <FilterOption key={value} label={value} count={count} active={search.category === value} onClick={() => onSearch({ category: value })} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="font-display text-base font-bold">Raridade</h2>
+        <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
+          {facets.rarities.map(({ value, count }) => (
+            <FilterOption key={value} label={rarityLabels[value] ?? value} count={count} active={search.rarity === value} onClick={() => toggle('rarity', value)} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="font-display text-base font-bold">Faixa de preco</h2>
+        <PriceRangeFilter key={`${search.minPrice}-${search.maxPrice}`} search={search} onSearch={onSearch} bounds={bounds} />
+      </div>
+
+      <div>
+        <h2 className="font-display text-base font-bold">Rede</h2>
+        <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
+          {facets.networks.map(({ value, count }) => (
+            <FilterOption key={value} label={value} count={count} active={search.network === value} onClick={() => toggle('network', value)} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CatalogTabs({ search, onSearch, className, activeClassName, inactiveClassName }: {
+  search: CatalogSearch
+  onSearch: UpdateSearch
+  className: string
+  activeClassName: string
+  inactiveClassName: string
+}) {
+  return (
+    <div className={className} role="group" aria-label="Colecoes do catalogo">
+      {catalogTabs.map((tab) => (
+        <button
+          key={tab.value}
+          type="button"
+          className={search.tag === tab.value ? activeClassName : inactiveClassName}
+          aria-pressed={search.tag === tab.value}
+          onClick={() => onSearch({ tag: tab.value })}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SortSelect({ id, search, onSearch, className }: { id: string; search: CatalogSearch; onSearch: UpdateSearch; className?: string }) {
+  return (
+    <div className={cn('flex items-center gap-2 text-sm font-bold text-[#9a806a]', className)}>
+      <SlidersHorizontal size={16} aria-hidden="true" />
+      <label htmlFor={id}>Ordenar por:</label>
+      <select
+        id={id}
+        value={search.sort}
+        onChange={(event) => onSearch({ sort: event.target.value })}
+        className="rounded-sm border border-border bg-[#160b08] px-2 py-1 text-[#d1b38f] focus:border-primary"
+      >
+        {sortOptions.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function Pagination({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (page: number) => void }) {
+  if (totalPages <= 1) return null
+  const visiblePages = getVisiblePages(page, totalPages)
+
+  return (
+    <nav className="flex justify-end gap-2" aria-label="Paginacao do catalogo">
+      {visiblePages[0] > 1 && (
+        <button
+          type="button"
+          className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
+          aria-label="Voltar paginas"
+          onClick={() => onPage(visiblePages[0] - 1)}
+        >
+          <ChevronLeft size={15} />
+        </button>
+      )}
+      {visiblePages.map((item) => (
+        <button
+          key={item}
+          type="button"
+          className={item === page ? 'grid size-8 place-items-center rounded-sm bg-primary text-sm font-bold text-[#160b08]' : 'grid size-8 place-items-center rounded-sm border border-border text-sm font-bold text-[#9a806a]'}
+          aria-label={`Pagina ${item}`}
+          aria-current={item === page ? 'page' : undefined}
+          onClick={() => onPage(item)}
+        >
+          {item}
+        </button>
+      ))}
+      {visiblePages.at(-1)! < totalPages && (
+        <button
+          type="button"
+          className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
+          aria-label="Avancar paginas"
+          onClick={() => onPage(visiblePages.at(-1)! + 1)}
+        >
+          <ChevronRight size={15} />
+        </button>
+      )}
+    </nav>
+  )
+}
+
+function CatalogError({ onRetry, className }: { onRetry: () => void; className: string }) {
+  return (
+    <div className={className} role="alert">
+      <h2 className="font-display text-2xl font-bold">Nao foi possivel carregar o catalogo</h2>
+      <p className="mt-2 text-sm text-[#9b826d]">Verifique sua conexao e tente novamente.</p>
+      <Button className="mt-5" onClick={onRetry}>Tentar novamente</Button>
+    </div>
+  )
+}
+
+function CatalogEmpty({ onClear, className }: { onClear: () => void; className: string }) {
+  return (
+    <div className={className}>
+      <h2 className="font-display text-2xl font-bold">Nenhum NFT encontrado</h2>
+      <p className="mt-2 text-sm text-[#9b826d]">Ajuste a busca ou remova filtros para ver mais obras.</p>
+      <Button variant="secondary" className="mt-5" onClick={onClear}>Limpar filtros</Button>
+    </div>
+  )
+}
+
+export function HomePage() {
+  const search = useSearch({ from: '/' })
+  const navigate = useNavigate({ from: '/' })
+  const catalogQuery = useQuery({
+    queryKey: ['nfts', search],
+    queryFn: ({ signal }) => listNfts(toNftListParams(search, pageSize), signal),
+  })
+  const featuredQuery = useQuery({
+    queryKey: ['nfts', 'featured'],
+    queryFn: ({ signal }) => listNfts({ featured: true, pageSize: 3 }, signal),
+  })
+  const facetsQuery = useQuery({ queryKey: ['nft-facets'], queryFn: getCatalogFacets })
+  const featured = featuredQuery.data?.items ?? []
+  const items = catalogQuery.data?.items ?? []
+  const totalPages = catalogQuery.data?.totalPages ?? 1
+
+  const updateSearch: UpdateSearch = (next) => {
+    void navigate({
       search: (old) => ({ ...old, ...next, page: next.page ?? 1 }),
       resetScroll: false,
     })
   }
-  const hasActiveFilters =
-    Boolean(search.q?.trim()) ||
-    (search.category && search.category !== 'todos') ||
-    Boolean(search.minPrice) ||
-    Boolean(search.maxPrice) ||
-    search.sort !== 'recentes'
   const clearFilters = () => {
-    setSortOpen(false)
-    updateSearch({
-      q: '',
-      rarity: 'todos',
-      category: 'todos',
-      minPrice: '',
-      maxPrice: '',
-      sort: 'recentes',
-      page: 1,
-    })
+    void navigate({ search: defaultCatalogSearch, resetScroll: false })
   }
+  const hasActiveFilters = countActiveFilters(search) > 0
+  const retry = () => void catalogQuery.refetch()
+
+  const results = catalogQuery.isError ? (
+    <CatalogError onRetry={retry} className="mt-7 bg-card p-8 text-center" />
+  ) : catalogQuery.isPending ? (
+    <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between" aria-busy="true">
+      {Array.from({ length: pageSize }).map((_, index) => (
+        <Skeleton key={index} className="aspect-[0.78] rounded-none" />
+      ))}
+    </div>
+  ) : items.length ? (
+    <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
+      {items.map((nft) => (
+        <MarketCard key={nft.id} nft={nft} />
+      ))}
+    </div>
+  ) : (
+    <CatalogEmpty onClear={clearFilters} className="mt-7 bg-card p-8 text-center" />
+  )
 
   return (
     <>
-      <MobileHomePage items={apiItems} isLoading={isLoading} isError={isError} search={search} onSearch={updateSearch} />
+      <MobileHomePage
+        search={search}
+        onSearch={updateSearch}
+        onClear={clearFilters}
+        featured={featured}
+        facets={facetsQuery.data}
+        items={items}
+        isPending={catalogQuery.isPending}
+        isError={catalogQuery.isError}
+        onRetry={retry}
+        totalPages={totalPages}
+      />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-8 sm:px-6 md:block lg:px-[120px]">
       <section className="grid gap-8 lg:min-h-[450px] lg:grid-cols-[600px_450px] lg:items-center lg:justify-between">
@@ -268,147 +441,70 @@ export function HomePage() {
           <p className="mt-4 max-w-[520px] text-sm font-bold leading-6 text-[#8a705c]">
             Descubra NFTs selecionados de criadores emergentes e consagrados. Colecione arte digital rara, apoie artistas e tenha uma parte da cultura da internet.
           </p>
-          <a href="#catalogo" className="mt-8 inline-flex">
-            <Button size="sm" className="px-7">
-              Explorar
-            </Button>
+          <a href="#catalogo" className={buttonVariants({ size: 'sm', className: 'mt-8 px-7' })}>
+            Explorar
           </a>
         </div>
 
         <div className="justify-self-center lg:justify-self-end">
           <div className="aspect-square w-full max-w-[450px] overflow-hidden rounded-[24px] bg-[#e9e2c9] lg:size-[450px]">
-            <img src={featured.hero} alt={featured.title} className="h-full w-full object-cover" />
+            {featured[0] ? (
+              <Link to="/nft/$nftId" params={{ nftId: featured[0].id }}>
+                <img src={featured[0].hero} alt={featured[0].title} className="h-full w-full object-cover" />
+              </Link>
+            ) : (
+              <Skeleton className="h-full w-full rounded-none" />
+            )}
           </div>
         </div>
       </section>
 
-      <div className="mt-9 flex justify-center gap-2 lg:pr-[450px]">
+      <div className="mt-9 flex justify-center gap-2 lg:pr-[450px]" aria-hidden="true">
         {[0, 1, 2].map((dot) => (
           <span key={dot} className="size-2 rounded-full bg-primary" />
         ))}
       </div>
 
       <section id="catalogo" className="mt-[50px] grid gap-10 lg:grid-cols-[300px_1fr] lg:gap-[52px]">
-        <aside className="space-y-8">
+        <aside className="space-y-8" aria-label="Filtros do catalogo">
           <div className="bg-card p-5">
-            <h2 className="font-display text-base font-bold">Categorias</h2>
-            <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
-              <button
-                type="button"
-                className={cn(
-                  'flex items-center justify-between text-left transition hover:text-primarySoft',
-                  (search.category === 'todos' || !search.category) && 'text-primarySoft underline underline-offset-4',
-                )}
-                aria-pressed={search.category === 'todos' || !search.category}
-                onClick={() => updateSearch({ category: 'todos' })}
-              >
-                <span>Todas</span>
-                <span className="text-primarySoft">({nfts.length})</span>
-              </button>
-              {categoryCounts.map(({ label, count }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={cn(
-                    'flex items-center justify-between text-left transition hover:text-primarySoft',
-                    search.category === label && 'text-primarySoft underline underline-offset-4',
-                  )}
-                  aria-pressed={search.category === label}
-                  onClick={() => updateSearch({ category: label })}
-                >
-                  <span>{label}</span>
-                  <span className="text-primarySoft">({count})</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-10">
-              <h2 className="font-display text-base font-bold">Faixa de preco</h2>
-              <PriceRangeFilter key={`${search.minPrice}-${search.maxPrice}`} search={search} onSearch={updateSearch} />
-            </div>
-
-            <div className="mt-10">
-              <h2 className="font-display text-base font-bold">Rede</h2>
-              <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
-                {['Ethereum', 'Polygon', 'Solana'].map((network, index) => (
-                  <button key={network} type="button" className="flex justify-between text-left hover:text-primarySoft">
-                    <span>{network}</span>
-                    <span>({119 - index * 33})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <CatalogFilters search={search} onSearch={updateSearch} facets={facetsQuery.data} />
           </div>
 
           <div className="bg-[#1d100b] p-5">
             <p className="font-display text-2xl font-bold uppercase text-primary">NFT em destaque</p>
             <p className="mt-2 font-display text-xl font-bold uppercase text-foreground">Oferta limitada</p>
-            <Link to="/nft/$nftId" params={{ nftId: nfts[1].id }} className="mt-5 block overflow-hidden rounded-md bg-[#efe7d2]">
-              <img src={nfts[1].hero} alt={nfts[1].title} className="aspect-square w-full object-cover" loading="lazy" />
-            </Link>
+            {featured[1] ? (
+              <Link to="/nft/$nftId" params={{ nftId: featured[1].id }} className="mt-5 block overflow-hidden rounded-md bg-[#efe7d2]">
+                <img src={featured[1].hero} alt={featured[1].title} className="aspect-square w-full object-cover" loading="lazy" />
+              </Link>
+            ) : (
+              <Skeleton className="mt-5 aspect-square w-full" />
+            )}
           </div>
         </aside>
 
         <div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-5 font-display text-sm font-bold">
-              {[
-                ['recentes', 'Todos os NFTs'],
-                ['preco-menor', 'Novos lancamentos'],
-                ['preco-maior', 'Em alta'],
-              ].map(([sort, tab]) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className={search.sort === sort ? 'border-b-2 border-primary pb-1 text-primary' : 'pb-1 text-[#a18a78] hover:text-primarySoft'}
-                  aria-pressed={search.sort === sort}
-                  onClick={() => updateSearch({ sort })}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            <div className="relative self-start sm:self-auto">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 text-sm font-bold text-[#9a806a] hover:text-primarySoft"
-                aria-expanded={sortOpen}
-                aria-haspopup="menu"
-                onClick={() => setSortOpen((value) => !value)}
-              >
-                <SlidersHorizontal size={16} />
-                Ordenar por: {sortOptions.find((option) => option.value === search.sort)?.label ?? 'Recentes'}
-              </button>
-              {sortOpen && (
-                <div className="absolute right-0 top-8 z-20 min-w-44 border border-border bg-card p-2 shadow-[0_18px_45px_rgba(0,0,0,0.35)]" role="menu">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={cn(
-                        'block w-full px-3 py-2 text-left text-sm font-bold transition hover:bg-[#2a160f] hover:text-primarySoft',
-                        search.sort === option.value ? 'text-primary' : 'text-[#a18a78]',
-                      )}
-                      role="menuitem"
-                      onClick={() => {
-                        setSortOpen(false)
-                        updateSearch({ sort: option.value })
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <CatalogTabs
+              search={search}
+              onSearch={updateSearch}
+              className="flex flex-wrap gap-5 font-display text-sm font-bold"
+              activeClassName="border-b-2 border-primary pb-1 text-primary"
+              inactiveClassName="pb-1 text-[#a18a78] hover:text-primarySoft"
+            />
+            <SortSelect id="catalog-sort" search={search} onSearch={updateSearch} className="self-start sm:self-auto" />
           </div>
-          <form className="mt-5 flex max-w-xl flex-wrap gap-3" onSubmit={(event) => {
+          <form className="mt-5 flex max-w-xl flex-wrap gap-3" role="search" onSubmit={(event) => {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
             updateSearch({ q: String(form.get('q') ?? '') })
           }}>
             <div className="flex min-w-0 flex-1 overflow-hidden rounded-sm border border-border bg-[#160b08]">
+              <label htmlFor="catalog-search" className="sr-only">Buscar NFTs</label>
               <input
+                id="catalog-search"
+                key={search.q}
                 name="q"
                 defaultValue={search.q}
                 className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
@@ -426,70 +522,31 @@ export function HomePage() {
             )}
           </form>
 
-          {isError ? (
-            <div className="mt-7 bg-card p-8 text-center">
-              <h2 className="font-display text-2xl font-bold">Nao foi possivel carregar o catalogo</h2>
-              <p className="mt-2 text-sm text-[#9b826d]">Verifique o cenario de rede simulado e tente novamente.</p>
-              <Button className="mt-5" onClick={() => void refetch()}>Tentar novamente</Button>
-            </div>
-          ) : isLoading ? (
-            <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
-              {Array.from({ length: 9 }).map((_, index) => (
-                <div key={index} className="aspect-[0.78] animate-pulse bg-card" />
-              ))}
-            </div>
-          ) : apiItems.length ? (
-            <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
-              {apiItems.map((nft, index) => (
-                <MarketCard key={nft.id} nft={nft} index={(search.page - 1) * 9 + index} />
-              ))}
-            </div>
-          ) : (
-            <div className="mt-7 bg-card p-8 text-center">
-              <h2 className="font-display text-2xl font-bold">Nenhum NFT encontrado</h2>
-              <p className="mt-2 text-sm text-[#9b826d]">Ajuste a busca ou remova filtros para ver mais obras.</p>
-            </div>
-          )}
+          {results}
 
-          <div className="mt-16 flex justify-end gap-2">
-            {visiblePages[0] > 1 && (
-              <button
-                type="button"
-                className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
-                aria-label="Voltar paginas"
-                onClick={() => updateSearch({ page: visiblePages[0] - 1 })}
-              >
-                <ChevronLeft size={15} />
-              </button>
-            )}
-            {visiblePages.map((page) => (
-              <button
-                key={page}
-                type="button"
-                className={page === search.page ? 'grid size-8 place-items-center rounded-sm bg-primary text-sm font-bold text-[#160b08]' : 'grid size-8 place-items-center rounded-sm border border-border text-sm font-bold text-[#9a806a]'}
-                onClick={() => updateSearch({ page })}
-              >
-                {page}
-              </button>
-            ))}
-            {visiblePages.at(-1)! < totalPages && (
-              <button
-                type="button"
-                className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
-                aria-label="Avancar paginas"
-                onClick={() => updateSearch({ page: visiblePages.at(-1)! + 1 })}
-              >
-                <ChevronRight size={15} />
-              </button>
-            )}
+          <div className="mt-16">
+            <Pagination page={search.page} totalPages={totalPages} onPage={(page) => updateSearch({ page })} />
           </div>
-          {isFetching && !isLoading && <p className="mt-3 text-right text-xs font-bold text-primarySoft">Atualizando catalogo...</p>}
+          {catalogQuery.isFetching && !catalogQuery.isPending && (
+            <p className="mt-3 text-right text-xs font-bold text-primarySoft" role="status">Atualizando catalogo...</p>
+          )}
         </div>
       </section>
 
       <section className="mt-24 grid gap-7 lg:grid-cols-2">
-        <PromoTile nft={nfts[0]} />
-        <PromoTile nft={nfts[2]} reverse />
+        <PromoTile
+          nft={featured[0]}
+          title="Lancamentos genesis de edicao limitada"
+          description="Colecione edicoes escassas diretamente dos criadores antes da revelacao publica."
+          search={{ ...defaultCatalogSearch, tag: 'lancamento' }}
+        />
+        <PromoTile
+          nft={featured[2]}
+          title="Arte digital selecionada e muito mais"
+          description="Explore novos artistas, colecoes verificadas e obras digitais que definem a cultura."
+          search={{ ...defaultCatalogSearch, category: 'Arte digital' }}
+          reverse
+        />
       </section>
 
       <section className="mt-24">
@@ -499,84 +556,85 @@ export function HomePage() {
         </div>
 
         <div className="mt-9 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {blogPosts.map(([title, description], index) => {
-            const nft = nfts[(index + 2) % nfts.length]
-            return (
-              <article key={title} className="overflow-hidden rounded-sm bg-card">
-                <img src={nft.hero} alt="" className="aspect-[1.28] w-full object-cover" loading="lazy" />
-                <div className="p-4">
-                  <p className="text-[0.68rem] font-bold text-primarySoft">15 de setembro | Leitura de {index + 2} min</p>
-                  <h3 className="mt-3 font-display text-base font-bold leading-tight">{title}</h3>
-                  <p className="mt-3 text-xs font-bold leading-5 text-[#9b826d]">{description}</p>
-                  <a href="#catalogo" className="mt-3 inline-block text-xs font-bold text-primarySoft">
-                    Ler mais -&gt;
-                  </a>
-                </div>
-              </article>
-            )
-          })}
+          {blogPosts.map(([title, description, image], index) => (
+            <article key={title} className="overflow-hidden rounded-sm bg-card">
+              <img src={image} alt="" className="aspect-[1.28] w-full object-cover" loading="lazy" />
+              <div className="p-4">
+                <p className="text-[0.68rem] font-bold text-primarySoft">15 de setembro | Leitura de {index + 2} min</p>
+                <h3 className="mt-3 font-display text-base font-bold leading-tight">{title}</h3>
+                <p className="mt-3 text-xs font-bold leading-5 text-[#9b826d]">{description}</p>
+                <p className="mt-3 text-xs font-bold text-[#806957]">Artigo em breve</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="mt-24 bg-card">
-        <div className="grid gap-0 md:grid-cols-4">
-          {[
-            ['W', 'Seguranca da carteira', 'Proteja sua carteira e colecione arte digital verificada com confianca.'],
-            ['C', 'Criadores em destaque', 'Conheca artistas, estudios e comunidades que moldam a cultura digital na rede.'],
-            ['D', 'Alertas de lancamentos', 'Receba calendarios de cunhagem, novidades de listas de acesso e analises do mercado.'],
-          ].map(([letter, title, text]) => (
-            <div key={title} className="border-b border-border p-8 md:border-b-0 md:border-r">
-              <span className="grid size-16 place-items-center rounded-full bg-primary font-display text-xl font-bold text-[#160b08]">{letter}</span>
-              <h3 className="mt-5 font-display text-base font-bold">{title}</h3>
-              <p className="mt-3 text-sm font-bold leading-6 text-[#9b826d]">{text}</p>
-            </div>
-          ))}
-          <div className="p-8">
-            <h3 className="font-display text-base font-bold">Antecipe-se ao proximo lancamento</h3>
-            <div className="mt-5 flex overflow-hidden rounded-sm border border-border bg-[#160b08]">
-              <input className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none" placeholder="Digite seu e-mail..." />
-              <Button className="rounded-none">Enviar</Button>
-            </div>
-            <p className="mt-4 text-xs font-bold leading-5 text-[#9b826d]">Receba lancamentos selecionados, historias de criadores e novidades do mercado.</p>
-          </div>
-        </div>
-      </section>
+      <BenefitsSignup />
       </div>
     </>
   )
 }
 
 function MobileHomePage({
-  items,
-  isLoading,
-  isError,
   search,
   onSearch,
+  onClear,
+  featured,
+  facets,
+  items,
+  isPending,
+  isError,
+  onRetry,
+  totalPages,
 }: {
+  search: CatalogSearch
+  onSearch: UpdateSearch
+  onClear: () => void
+  featured: Nft[]
+  facets?: CatalogFacetsResponse
   items: Nft[]
-  isLoading: boolean
+  isPending: boolean
   isError: boolean
-  search: HomeSearch
-  onSearch: (next: Partial<HomeSearch>) => void
+  onRetry: () => void
+  totalPages: number
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const favorites = useFavorites()
+  const activeFilters = countActiveFilters(search)
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     onSearch({ q: String(form.get('q') ?? '') })
   }
 
-
   return (
-    <div className="min-h-screen bg-[#120906] px-6 pb-28 pt-10 font-mono text-foreground md:hidden">
-      <form className="flex gap-2" onSubmit={handleSubmit}>
-        <label className="flex h-[46px] min-w-0 flex-1 items-center gap-3 rounded-lg bg-card px-4 text-[#caa677]">
-          <Search size={20} />
-          <input name="q" defaultValue={search.q} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
-        </label>
-        <button type="submit" className="grid size-[46px] place-items-center rounded-xl bg-[#d9904b] text-[#120906]" aria-label="Buscar">
+    <div className="min-h-screen bg-[#120906] px-6 pb-10 pt-10 font-mono text-foreground md:hidden">
+      <div className="flex gap-2">
+        <form className="min-w-0 flex-1" role="search" onSubmit={handleSubmit}>
+          <label className="flex h-[46px] min-w-0 items-center gap-3 rounded-lg bg-card px-4 text-[#caa677]">
+            <Search size={20} aria-hidden="true" />
+            <span className="sr-only">Buscar NFTs</span>
+            <input id="busca" key={search.q} name="q" type="search" defaultValue={search.q} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
+          </label>
+        </form>
+        <button
+          type="button"
+          className="relative grid size-[46px] place-items-center rounded-xl bg-[#d9904b] text-[#120906]"
+          aria-label={activeFilters ? `Filtros (${activeFilters} ativos)` : 'Filtros'}
+          aria-haspopup="dialog"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
           <SlidersHorizontal size={22} />
+          {activeFilters > 0 && (
+            <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-foreground text-[0.62rem] font-black text-[#120906]" aria-hidden="true">
+              {activeFilters}
+            </span>
+          )}
         </button>
-      </form>
+      </div>
 
       <section className="relative mt-4 overflow-hidden rounded-[24px] bg-[#3a2115] px-4 py-4">
         <div className="relative z-10 max-w-[48%]">
@@ -593,115 +651,119 @@ function MobileHomePage({
           </a>
         </div>
         <div className="absolute -left-10 top-0 size-44 rounded-full bg-[#7d4b2b]/30" />
-        <img src={nfts[0].hero} alt={nfts[0].title} className="absolute right-4 top-3 size-[138px] rounded-[18px] object-cover" />
-        <img src={nfts[1].hero} alt={nfts[1].title} className="absolute bottom-8 right-[92px] size-[58px] rounded-[16px] object-cover" />
+        {featured[0] ? (
+          <img src={featured[0].hero} alt={featured[0].title} className="absolute right-4 top-3 size-[138px] rounded-[18px] object-cover" />
+        ) : (
+          <Skeleton className="absolute right-4 top-3 size-[138px] rounded-[18px]" />
+        )}
+        {featured[1] && (
+          <img src={featured[1].hero} alt={featured[1].title} className="absolute bottom-8 right-[92px] size-[58px] rounded-[16px] object-cover" />
+        )}
       </section>
 
-      <div className="mt-3 flex justify-center gap-2">
+      <div className="mt-3 flex justify-center gap-2" aria-hidden="true">
         {[0, 1, 2].map((dot) => (
           <span key={dot} className="size-2 rounded-full bg-primarySoft" />
         ))}
       </div>
 
-      <nav id="mobile-catalogo" className="mt-5 flex gap-4 overflow-x-auto whitespace-nowrap text-sm" aria-label="Ordenacao do catalogo">
-        {[
-          ['recentes', 'Todos os NFTs'],
-          ['preco-menor', 'Novos lancamentos'],
-          ['preco-maior', 'Em alta'],
-        ].map(([sort, label]) => (
-          <button
-            key={sort}
-            type="button"
-            className={search.sort === sort ? 'border-b-2 border-primary pb-1 font-black text-primarySoft' : 'pb-1 text-foreground'}
-            aria-pressed={search.sort === sort}
-            onClick={() => onSearch({ sort })}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <div id="mobile-catalogo">
+        <CatalogTabs
+          search={search}
+          onSearch={onSearch}
+          className="mt-5 flex gap-4 overflow-x-auto whitespace-nowrap text-sm"
+          activeClassName="border-b-2 border-primary pb-1 font-black text-primarySoft"
+          inactiveClassName="pb-1 text-foreground"
+        />
+      </div>
+
+      {favorites.error && <p role="alert" className="mt-4 rounded-xl bg-red-950/40 p-3 text-xs text-red-100">{favorites.error}</p>}
 
       {isError ? (
-        <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">
-          Nao foi possivel carregar o catalogo.
-        </div>
-      ) : isLoading ? (
-        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
+        <CatalogError onRetry={onRetry} className="mt-8 rounded-2xl bg-card p-5 text-center" />
+      ) : isPending ? (
+        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7" aria-busy="true">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="aspect-[0.82] animate-pulse rounded-[20px] bg-card" />
+            <Skeleton key={index} className="aspect-[0.82] rounded-[20px]" />
           ))}
         </div>
       ) : items.length ? (
         <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
-        {items.map((nft, index) => (
-          <MobileNftCard key={`${nft.id}-${index}`} nft={nft} index={index} />
-        ))}
+          {items.map((nft, index) => (
+            <MobileNftCard
+              key={nft.id}
+              nft={nft}
+              staggered={index % 2 === 1}
+              isFavorite={favorites.isFavorite(nft.id)}
+              isFavoritePending={favorites.isPending(nft.id)}
+              onToggleFavorite={() => favorites.toggleFavorite(nft.id)}
+            />
+          ))}
         </div>
       ) : (
-        <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">
-          Nenhum NFT encontrado.
-        </div>
+        <CatalogEmpty onClear={onClear} className="mt-8 rounded-2xl bg-card p-5 text-center" />
       )}
 
-      <MobileBottomNav />
+      <div className="mt-8">
+        <Pagination page={search.page} totalPages={totalPages} onPage={(page) => onSearch({ page })} />
+      </div>
+
+      {filtersOpen && (
+        <Dialog labelledBy="mobile-filters-title" placement="bottom" onClose={() => setFiltersOpen(false)} className="max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-card px-6 pb-8 pt-6">
+          <div className="flex items-center justify-between">
+            <h2 id="mobile-filters-title" className="text-lg font-black">Filtrar catalogo</h2>
+            <button type="button" className="grid size-9 place-items-center rounded-full border border-border text-primarySoft" aria-label="Fechar filtros" onClick={() => setFiltersOpen(false)}>
+              <X size={18} />
+            </button>
+          </div>
+          <SortSelect id="mobile-catalog-sort" search={search} onSearch={onSearch} className="mt-6" />
+          <div className="mt-8">
+            <CatalogFilters search={search} onSearch={onSearch} facets={facets} />
+          </div>
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            <Button variant="secondary" onClick={onClear} disabled={!activeFilters}>Limpar</Button>
+            <Button onClick={() => setFiltersOpen(false)}>Ver resultados</Button>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }
 
-function MobileNftCard({ nft, index }: { nft: Nft; index: number }) {
-  const names = ['Emerald Ape #042', 'Sage Nomad #009', 'Ivory Baron #088', 'Golden Beat #207', 'Cocoa Bloom #118', 'Mint Rover #601']
-  const runProtected = useProtectedAction()
-
+function MobileNftCard({ nft, staggered, isFavorite, isFavoritePending, onToggleFavorite }: {
+  nft: Nft
+  staggered: boolean
+  isFavorite: boolean
+  isFavoritePending: boolean
+  onToggleFavorite: () => void
+}) {
   return (
-    <Link to="/nft/$nftId" params={{ nftId: nft.id }} className={index % 2 === 1 ? 'mt-8 block' : 'block'}>
-      <div className="relative overflow-hidden rounded-[20px] bg-card p-1">
-        {index === 2 && <span className="absolute left-0 top-4 z-10 bg-primary px-3 py-2 text-[0.65rem] font-black text-[#120906]">RARO</span>}
-        {index === 0 && (
-          <button
-            type="button"
-            className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full border border-primary bg-card/85 text-primarySoft"
-            aria-label="Favoritar"
-            onClick={(event) => {
-              event.preventDefault()
-              runProtected(() => undefined)
-            }}
-          >
-            <Heart size={17} />
-          </button>
-        )}
-        <img src={nft.hero} alt={names[index] ?? nft.title} className="aspect-square w-full rounded-[16px] object-cover" />
-      </div>
-      <h2 className="mt-3 text-sm font-bold">{names[index] ?? nft.title}</h2>
-      <p className="text-base font-black text-primarySoft">
-        {nft.priceEth} ETH
-        {nft.available < 1 && <span className="ml-2 text-xs uppercase text-red-200">Esgotado</span>}
-      </p>
-    </Link>
-  )
-}
-
-function MobileBottomNav() {
-  const { itemCount } = useCart()
-  const runProtected = useProtectedAction()
-
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-[94px] max-w-md items-center justify-around rounded-t-[28px] bg-card px-7 text-[#dfb98c] shadow-[0_-18px_50px_rgba(0,0,0,0.3)]">
-      <Link to="/" search={{ q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }} aria-label="Inicio">
-        <Home size={22} className="fill-current" />
+    <article className={cn('relative', staggered && 'mt-8')}>
+      <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="block">
+        <div className="relative overflow-hidden rounded-[20px] bg-card p-1">
+          {nft.rarity !== 'comum' && (
+            <span className="absolute left-0 top-4 z-10 bg-primary px-3 py-2 text-[0.65rem] font-black uppercase text-[#120906]">
+              {rarityLabels[nft.rarity]}
+            </span>
+          )}
+          <img src={nft.hero} alt={nft.title} className="aspect-square w-full rounded-[16px] object-cover" loading="lazy" />
+        </div>
+        <h2 className="mt-3 truncate text-sm font-bold">{nft.title}</h2>
+        <p className="text-base font-black text-primarySoft">
+          {formatEth(nft.priceEth)}
+          {nft.available < 1 && <span className="ml-2 text-xs uppercase text-red-200">Esgotado</span>}
+        </p>
       </Link>
-      <button type="button" aria-label="Favoritos" onClick={() => runProtected(() => undefined)}>
-        <Heart size={22} className="fill-current" />
+      <button
+        type="button"
+        className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full border border-primary bg-card/85 text-primarySoft disabled:opacity-60"
+        aria-label={isFavorite ? `Remover ${nft.title} dos favoritos` : `Favoritar ${nft.title}`}
+        aria-pressed={isFavorite}
+        disabled={isFavoritePending}
+        onClick={onToggleFavorite}
+      >
+        <Heart size={17} className={isFavorite ? 'fill-current' : ''} />
       </button>
-      <button type="button" className="-mt-12 grid size-16 place-items-center rounded-full bg-[#c57d3b] text-white shadow-glow" aria-label="Abrir scanner">
-        <span className="grid size-7 place-items-center rounded-lg border-2 border-white" />
-      </button>
-      <Link to="/carrinho" aria-label="Carrinho" className="relative">
-        <ShoppingCart size={22} className="fill-current" />
-        {itemCount > 0 && <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-primary text-[0.58rem] text-[#120906]">{itemCount}</span>}
-      </Link>
-      <Link to="/login" search={{ redirect: '/' }} aria-label="Perfil">
-        <UserRound size={22} className="fill-current" />
-      </Link>
-    </nav>
+    </article>
   )
 }

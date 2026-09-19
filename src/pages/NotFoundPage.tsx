@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { Button } from '../components/ui/Button'
+import { buttonVariants } from '../components/ui/buttonVariants'
 import { Card } from '../components/ui/Card'
+import { defaultCatalogSearch } from '../modules/catalog/search'
 
-const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 export function NotFoundPage() {
   return (
@@ -11,8 +11,8 @@ export function NotFoundPage() {
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primarySoft">404</span>
         <h1 className="mt-3 font-display text-4xl font-bold">Pagina nao encontrada</h1>
         <p className="mt-3 text-foreground/60">O recurso solicitado nao existe ou ainda nao faz parte do escopo.</p>
-        <Link to="/" search={homeSearch} className="mt-6 inline-block">
-          <Button>Voltar ao inicio</Button>
+        <Link to="/" search={defaultCatalogSearch} className={buttonVariants({ className: 'mt-6' })}>
+          Voltar ao inicio
         </Link>
       </Card>
     </div>

@@ -6,7 +6,9 @@ import apeSage from '../assets/kurio-ape-1.png'
 import apeOnyx from '../assets/kurio-ape-2.png'
 import apeGolden from '../assets/kurio-ape-3.png'
 
-const baseNfts: Nft[] = [
+type NftFixture = Omit<Nft, 'listedAt'>
+
+const baseNfts: NftFixture[] = [
   {
     id: 'emerald-ape-042',
     title: 'Emerald Ape #042',
@@ -17,13 +19,16 @@ const baseNfts: Nft[] = [
     priceEth: '3.42',
     previousPriceEth: '3.10',
     available: 2,
-    edition: '1 de 1',
+    edition: '1 de 3',
     network: 'Ethereum',
     hero: apeEmeraldDetail,
+    gallery: [apeEmeraldDetail, apeEmerald],
     accent: '#67a36f',
     description:
       'Um avatar raro da colecao GreenMint, criado para financiar reflorestamento e arte digital independente.',
     traits: ['Oculos solares', 'Jaqueta esmeralda', 'Fundo creme', 'Expressao rara'],
+    featured: true,
+    tags: ['em-alta'],
   },
   {
     id: 'sage-hood-804',
@@ -41,6 +46,8 @@ const baseNfts: Nft[] = [
     description:
       'Guardiao urbano com moletom botanico e historico de revenda crescente entre colecionadores.',
     traits: ['Capuz verde', 'Tom lavanda', 'Olhar calmo', 'Serie limitada'],
+    featured: true,
+    tags: ['lancamento'],
   },
   {
     id: 'onyx-visual-232',
@@ -58,6 +65,8 @@ const baseNfts: Nft[] = [
     description:
       'Peca de contraste alto, feita para quem busca colecoes com narrativa visual mais sombria.',
     traits: ['Pelo onix', 'Gola natural', 'Fundo claro', 'Expressao intensa'],
+    featured: true,
+    tags: ['em-alta'],
   },
   {
     id: 'golden-bark-907',
@@ -75,6 +84,7 @@ const baseNfts: Nft[] = [
     description:
       'Arte solar com tracos calorosos, ideal para entrada em colecoes sustentaveis.',
     traits: ['Pele dourada', 'Fones verdes', 'Vibe solar', 'Alta liquidez'],
+    tags: ['lancamento'],
   },
   {
     id: 'cocoa-bloom-118',
@@ -109,6 +119,7 @@ const baseNfts: Nft[] = [
     description:
       'NFT acessivel com visual leve, pensado para novos colecionadores do ecossistema.',
     traits: ['Verde claro', 'Entrada acessivel', 'Polygon', 'Drop recente'],
+    tags: ['lancamento'],
   },
 ]
 
@@ -156,7 +167,10 @@ const catalogCategories = [
   'Utilidade',
 ]
 
-export const nfts: Nft[] = [
+const tagsFor = (index: number): NftFixture['tags'] =>
+  index % 4 === 0 ? ['lancamento'] : index % 5 === 1 ? ['em-alta'] : undefined
+
+const fixtures: NftFixture[] = [
   ...baseNfts,
   ...fakeDrops.map(([id, title, creator, collection, rarity, priceEth, available, edition, network, accent, hero], index) => ({
     id,
@@ -173,6 +187,7 @@ export const nfts: Nft[] = [
     accent,
     description: `Obra da colecao ${collection}, criada como dado fake para demonstrar navegacao, filtros e paginacao do mercado Kurio.`,
     traits: ['Drop curado', 'Mercado Kurio', `Serie ${index + 1}`, 'Dado demonstrativo'],
+    tags: tagsFor(index),
   })),
   ...Array.from({ length: 35 }, (_, index) => {
     const source = baseNfts[index % baseNfts.length]
@@ -189,9 +204,18 @@ export const nfts: Nft[] = [
       accent: ['#67a36f', '#c8d2ae', '#2f3d35', '#e1a24a', '#835639', '#90cc8c'][index % 6],
       description: `Variacao fake de ${source.collection} para manter a grade do catalogo preenchida durante a paginacao.`,
       traits: ['Grade 3x3', 'Paginacao demo', source.rarity, `Lote ${issue}`],
+      featured: false,
+      tags: tagsFor(issue + 2),
     }
   }),
 ]
+
+// Datas de listagem deterministicas (um dia entre cada item) para a ordenacao "recentes".
+const newestListing = Date.UTC(2026, 8, 15)
+export const nfts: Nft[] = fixtures.map((nft, index) => ({
+  ...nft,
+  listedAt: new Date(newestListing - index * 86_400_000).toISOString(),
+}))
 
 export const wallets: Wallet[] = [
   {
@@ -211,6 +235,3 @@ export const wallets: Wallet[] = [
     kind: 'secundaria',
   },
 ]
-
-export const categories = ['GreenMint Apes', 'Forest Keepers', 'Solar Jungle', 'Night Grove']
-export const rarities = ['todos', 'comum', 'raro', 'epico', 'lendario'] as const

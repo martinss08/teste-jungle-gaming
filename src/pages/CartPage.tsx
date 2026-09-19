@@ -1,67 +1,20 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useRef, useState } from 'react'
+import { BenefitsSignup } from '../components/BenefitsSignup'
+import { NftCarousel } from '../components/NftCarousel'
 import { Button } from '../components/ui/Button'
+import { Skeleton } from '../components/ui/Skeleton'
 import type { CartItem, QuoteLine } from '../contracts/api'
-import { nfts } from '../data/nfts'
 import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
-import type { Nft } from '../types'
+import { listNfts } from '../modules/catalog/api'
 import { useCart } from '../modules/cart/useCart'
 import { useAuth } from '../modules/auth/useAuth'
 import { AuthModalPage } from './LoginPage'
+import { defaultCatalogSearch } from '../modules/catalog/search'
 
-const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
-
-function BenefitsSignup() {
-  return (
-    <section className="mt-24 bg-card">
-      <div className="grid gap-0 md:grid-cols-4">
-        {[
-          ['W', 'Seguranca da carteira', 'Proteja sua carteira e colecione arte digital verificada com confianca.'],
-          ['C', 'Criadores em destaque', 'Conheca artistas, estudios e comunidades que moldam a cultura digital na rede.'],
-          ['D', 'Alertas de lancamentos', 'Receba calendarios de cunhagem, novidades de listas de acesso e analises do mercado.'],
-        ].map(([letter, title, text]) => (
-          <div key={title} className="border-b border-border p-8 md:border-b-0 md:border-r">
-            <span className="grid size-16 place-items-center rounded-full bg-primary font-display text-xl font-bold text-[#160b08]">{letter}</span>
-            <h3 className="mt-5 font-display text-base font-bold">{title}</h3>
-            <p className="mt-3 text-sm font-bold leading-6 text-[#9b826d]">{text}</p>
-          </div>
-        ))}
-        <div className="p-8">
-          <h3 className="font-display text-base font-bold">Antecipe-se ao proximo lancamento</h3>
-          <div className="mt-5 flex overflow-hidden rounded-sm border border-border bg-[#160b08]">
-            <input className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none" placeholder="Digite seu e-mail..." />
-            <Button className="rounded-none">Enviar</Button>
-          </div>
-          <p className="mt-4 text-xs font-bold leading-5 text-[#9b826d]">Receba lancamentos selecionados, historias de criadores e novidades do mercado.</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function RecommendationCard({ nft, index }: { nft: Nft; index: number }) {
-  const names = ['Cosmic Bloom', 'Violet Nomad', 'Ivory Baron', 'Golden Beat', 'Golden Signal']
-  const codes = ['118', '314', '088', '207', '160']
-  const displayIndex = index % names.length
-
-  return (
-    <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="group block">
-      <div className="bg-card p-5">
-        <div className="aspect-square overflow-hidden rounded-md bg-[#efe7d2]">
-          <img src={nft.hero} alt={nft.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
-        </div>
-      </div>
-      <h3 className="mt-3 truncate font-display text-base font-bold text-[#d3c2b3]">
-        {names[displayIndex]} #{codes[displayIndex]}
-      </h3>
-      <p className="font-display text-lg font-bold text-primarySoft">
-        {formatEth((Number(nft.priceEth) * (0.72 + displayIndex * 0.05)).toFixed(2), 2)}
-      </p>
-    </Link>
-  )
-}
 
 type CartRow = {
   item: CartItem
@@ -101,7 +54,7 @@ function canIncrease(row: CartRow) {
 }
 
 function AmountSkeleton({ className = 'h-4 w-24' }: { className?: string }) {
-  return <span aria-hidden="true" className={`inline-block animate-pulse rounded bg-[#3a2118] ${className}`} />
+  return <Skeleton className={cn('inline-block align-middle', className)} />
 }
 
 // Resumo da cotacao oficial da API; mostra skeleton enquanto carrega e sinaliza recalculo.
@@ -195,12 +148,13 @@ export function CartPage() {
   const { coupon, setCoupon, submit: handleCouponSubmit } = useCouponForm()
   const canCheckout = useCanCheckout()
   const [authOpen, setAuthOpen] = useState(false)
-  const [recommendationPage, setRecommendationPage] = useState(0)
-  const recommendationPool = nfts.length > 1 ? nfts : nfts
-  const recommendationPages = Array.from({ length: 3 }, (_, pageIndex) =>
-    Array.from({ length: 5 }, (_, itemIndex) => recommendationPool[(pageIndex * 5 + itemIndex + 1) % recommendationPool.length]),
-  )
-  const recommendations = recommendationPages[recommendationPage]
+  const recommendationsQuery = useQuery({
+    queryKey: ['nfts', 'em-alta'],
+    queryFn: ({ signal }) => listNfts({ tag: 'em-alta', pageSize: 20 }, signal),
+  })
+  const recommendations = (recommendationsQuery.data?.items ?? [])
+    .filter((nft) => !rows.some((row) => row.item.nftId === nft.id))
+    .slice(0, 15)
   const restoreCheckoutScroll = () => {
     const scrollY = checkoutScrollRef.current
     window.requestAnimationFrame(() => window.scrollTo(0, scrollY))
@@ -228,9 +182,9 @@ export function CartPage() {
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[60px] xl:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
-        <Link to="/" search={homeSearch} className="hover:text-primarySoft">Inicio</Link>
+        <Link to="/" search={defaultCatalogSearch} className="hover:text-primarySoft">Inicio</Link>
         <span className="px-2 text-[#8f7560]">/</span>
-        <Link to="/" search={homeSearch} hash="catalogo" className="hover:text-primarySoft">Mercado</Link>
+        <Link to="/" search={defaultCatalogSearch} hash="catalogo" className="hover:text-primarySoft">Mercado</Link>
         <span className="px-2 text-[#8f7560]">/</span>
         <span>Carrinho</span>
       </div>
@@ -251,12 +205,12 @@ export function CartPage() {
             <CartChangesNotice />
             {isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-[96px] animate-pulse bg-card" />
+                <Skeleton key={index} className="h-[96px] rounded-none" />
               ))
             ) : rows.length ? (
               rows.map((row) => {
                 const { item, quoteLine } = row
-                if (!quoteLine) return <div key={item.nftId} className="h-[96px] animate-pulse bg-card" />
+                if (!quoteLine) return <Skeleton key={item.nftId} className="h-[96px] rounded-none" />
                 const issues = describeIssues(quoteLine)
 
                 return (
@@ -350,36 +304,13 @@ export function CartPage() {
           ) : (
             <Button className="mt-5 w-full" size="lg" disabled>Conectar e finalizar</Button>
           )}
-          <Link to="/" search={homeSearch} className="mt-4 block text-center font-display text-base text-primarySoft hover:text-primary">
+          <Link to="/" search={defaultCatalogSearch} className="mt-4 block text-center font-display text-base text-primarySoft hover:text-primary">
             Continuar explorando
           </Link>
         </aside>
       </section>
 
-      <section className="mt-24">
-        <h2 className="border-b border-border pb-3 font-display text-xl font-bold text-primarySoft">Colecionadores tambem viram</h2>
-        <div className="mt-8 grid gap-7 sm:grid-cols-2 lg:grid-cols-5">
-          {recommendations.map((item, index) => (
-            <RecommendationCard key={`${recommendationPage}-${item.id}-${index}`} nft={item} index={recommendationPage * 5 + index} />
-          ))}
-        </div>
-        <div className="mt-8 flex justify-center gap-2">
-          {recommendationPages.map((_, pageIndex) => (
-            <button
-              key={pageIndex}
-              type="button"
-              className={
-                pageIndex === recommendationPage
-                  ? 'size-3 rounded-full border border-primary bg-primary'
-                  : 'size-3 rounded-full border border-primary bg-primary/20 transition hover:bg-primary/50'
-              }
-              aria-label={`Mostrar recomendacoes ${pageIndex + 1}`}
-              aria-current={pageIndex === recommendationPage ? 'true' : undefined}
-              onClick={() => setRecommendationPage(pageIndex)}
-            />
-          ))}
-        </div>
-      </section>
+      <NftCarousel title="Colecionadores tambem viram" items={recommendations} isLoading={recommendationsQuery.isPending} />
 
       <BenefitsSignup />
       </div>
@@ -407,7 +338,7 @@ function MobileCartPage({ onCheckout }: { onCheckout: () => void }) {
   return (
     <div className="min-h-screen bg-[#120906] px-6 pb-8 pt-8 font-mono text-foreground md:hidden">
       <header className="grid grid-cols-[44px_1fr_44px] items-center">
-        <Link to="/" search={homeSearch} className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar">
+        <Link to="/" search={defaultCatalogSearch} className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar">
           <ArrowLeft size={19} />
         </Link>
         <h1 className="text-center text-xl font-black tracking-[0.05em]">Carrinho de NFTs</h1>
@@ -418,11 +349,11 @@ function MobileCartPage({ onCheckout }: { onCheckout: () => void }) {
         <CartChangesNotice />
         {isLoading ? (
           Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-[100px] animate-pulse rounded-xl bg-card" />
+            <Skeleton key={index} className="h-[100px] rounded-xl" />
           ))
         ) : rows.length ? rows.map((row) => {
           const { item, quoteLine } = row
-          if (!quoteLine) return <div key={item.nftId} className="h-[100px] animate-pulse rounded-xl bg-card" />
+          if (!quoteLine) return <Skeleton key={item.nftId} className="h-[100px] rounded-xl" />
           const issues = describeIssues(quoteLine)
 
           return (

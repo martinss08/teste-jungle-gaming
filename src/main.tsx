@@ -7,6 +7,7 @@ import { CartProvider } from './modules/cart/CartProvider'
 import { AuthProvider } from './modules/auth/AuthProvider'
 import { RealtimeProvider } from './modules/realtime/RealtimeProvider'
 import { RequireAuth } from './modules/auth/RequireAuth'
+import { validateCatalogSearch } from './modules/catalog/search'
 import { HomePage } from './pages/HomePage'
 import { NftDetailsPage } from './pages/NftDetailsPage'
 import { CartPage } from './pages/CartPage'
@@ -49,25 +50,11 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFoundPage,
 })
 
-function searchString(value: unknown, fallback = '') {
-  if (typeof value === 'number') return String(value)
-  if (typeof value !== 'string') return fallback
-  return value.replace(/^"|"$/g, '')
-}
-
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: HomePage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: searchString(search.q),
-    rarity: searchString(search.rarity, 'todos'),
-    category: searchString(search.category, 'todos'),
-    minPrice: searchString(search.minPrice),
-    maxPrice: searchString(search.maxPrice),
-    sort: searchString(search.sort, 'recentes'),
-    page: Number(search.page || 1),
-  }),
+  validateSearch: validateCatalogSearch,
 })
 
 const nftRoute = createRoute({

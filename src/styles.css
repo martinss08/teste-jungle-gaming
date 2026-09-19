@@ -124,6 +124,27 @@ textarea:focus-visible {
   pointer-events: auto;
 }
 
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #21120d;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(244, 179, 111, 0.12), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

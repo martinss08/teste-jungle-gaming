@@ -1,4 +1,4 @@
-import type { CartLine, Nft, Rarity, Wallet } from '../types'
+import type { CartLine, Nft, NftTag, Rarity, Wallet } from '../types'
 
 export type ApiErrorCode =
   | 'VALIDATION_ERROR'
@@ -60,6 +60,8 @@ export type NftListParams = {
   network?: string
   minPrice?: string
   maxPrice?: string
+  tag?: NftTag
+  featured?: boolean
   sort?: 'recentes' | 'preco-menor' | 'preco-maior'
   page?: number
   pageSize?: number
@@ -67,8 +69,38 @@ export type NftListParams = {
 
 export type NftListResponse = ApiPage<Nft>
 
+export type NftFacet = {
+  value: string
+  count: number
+}
+
+// Contagens sobre o catalogo inteiro (independentes dos filtros aplicados).
+export type CatalogFacetsResponse = {
+  total: number
+  categories: NftFacet[]
+  rarities: NftFacet[]
+  networks: NftFacet[]
+  priceRange: { minEth: string; maxEth: string }
+}
+
+export type NftReview = {
+  id: string
+  name: string
+  handle: string
+  rating: number
+  date: string
+  text: string
+}
+
+export type NftReviewsResponse = {
+  items: NftReview[]
+  averageRating: number
+  total: number
+}
+
 export type FavoriteResponse = {
   nftIds: string[]
+  items: Nft[]
 }
 
 export type CartItem = CartLine & {

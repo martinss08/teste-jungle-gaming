@@ -40,9 +40,14 @@ test('cupom invalido mostra erro e persistencia sobrevive ao refresh/login', asy
 
 test('compra completa ate recibo confirmado', async ({ page }) => {
   await loginByApi(page)
-  await addCartItem(page, nfts.emerald)
+  await page.goto(`/nft/${nfts.emerald}`)
+  await page.getByRole('button', { name: /^Comprar$|Adicionar ao carrinho/ }).click()
+  await expect(page.getByRole('status').filter({ hasText: /Adicionado ao carrinho/i })).toBeVisible()
   await applyCoupon(page)
-  await page.goto('/pagamento')
+
+  await page.goto('/carrinho')
+  await page.getByRole('button', { name: /Conectar e finalizar/i }).click()
+  await expect(page).toHaveURL(/\/pagamento/)
 
   await page.getByRole('button', { name: /Conectar carteira/i }).click()
   await expect(page.getByText(/Conectada via/i)).toBeVisible()
@@ -51,6 +56,7 @@ test('compra completa ate recibo confirmado', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/confirmacao/)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('KURIO10', { exact: false }).first()).toBeVisible()
 })
 
 test('pagamento recusado, clique repetido e timeout recuperam estado correto', async ({ page }) => {
@@ -61,7 +67,11 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await page.getByRole('button', { name: /Conectar carteira/i }).click()
   await page.getByRole('button', { name: /Revisar pedido/i }).click()
   await page.getByRole('button', { name: /Confirmar e pagar/i }).dblclick()
-  await expect(page.getByText(/recusado|nao aprovado|não aprovado/i)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: /Pagamento recusado/i })).toBeVisible({ timeout: 10_000 })
+  // O primeiro pedido apos o reset e GM-2049; um pedido duplicado apareceria como GM-2050.
+  await expect(page).toHaveURL(/pedido=GM-2049/)
+  await page.getByRole('link', { name: /Voltar ao carrinho/i }).click()
+  await expect(page.locator('h2:visible', { hasText: /Emerald Ape/i })).toBeVisible()
 
   await resetMock(page)
   await loginByApi(page)
@@ -71,7 +81,8 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await page.getByRole('button', { name: /Conectar carteira/i }).click()
   await page.getByRole('button', { name: /Revisar pedido/i }).click()
   await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
-  await expect(page).toHaveURL(/\/confirmacao/)
+  await expect(page).toHaveURL(/pedido=GM-2049/)
+  await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
 })
 
 test('mudanca de preco/disponibilidade bloqueia checkout ate revisar carrinho', async ({ page }) => {
@@ -83,5 +94,5 @@ test('mudanca de preco/disponibilidade bloqueia checkout ate revisar carrinho', 
   await expect(page.getByRole('button', { name: /Conectar e finalizar/i })).toBeDisabled()
   await page.locator('button:visible', { hasText: /Aceitar valores atuais/i }).click()
   await expect(page.getByRole('alert').filter({ hasText: /cotacao do seu carrinho mudou/i })).toHaveCount(0)
-  await expect(page.locator('a:visible', { hasText: /Conectar e finalizar/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Conectar e finalizar/i })).toBeEnabled()
 })

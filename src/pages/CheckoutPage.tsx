@@ -2,13 +2,14 @@ import { Link } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, CheckCircle2, Link2, Unlink, WalletCards } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '../components/ui/Button'
+import { Skeleton } from '../components/ui/Skeleton'
 import { SUPPORTED_NETWORKS, type QuoteResponse } from '../contracts/api'
 import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
 import { useCart } from '../modules/cart/useCart'
 import { type CheckoutFlow, type CollectorForm, useCheckoutFlow, walletProviders } from '../modules/checkout/useCheckoutFlow'
+import { defaultCatalogSearch } from '../modules/catalog/search'
 
-const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 const inputClass =
   'h-10 w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-[#a98461] focus:border-primary aria-[invalid=true]:border-red-400'
@@ -54,21 +55,32 @@ function TextField({
   )
 }
 
+// Campo somente leitura; `unavailable` marca recursos do layout que nao existem na simulacao.
 function DisplayField({
   id,
   label,
   value,
   placeholder,
+  unavailable = false,
 }: {
   id: string
   label: string
   value?: string
   placeholder?: string
+  unavailable?: boolean
 }) {
   return (
     <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
       <label htmlFor={id}>{label}</label>
-      <input id={id} value={value ?? ''} placeholder={placeholder} readOnly className={cn(inputClass, 'mt-2 text-[#b9966d]')} />
+      <input
+        id={id}
+        value={value ?? ''}
+        placeholder={placeholder}
+        readOnly
+        disabled={unavailable}
+        aria-describedby={unavailable ? 'checkout-unavailable-note' : undefined}
+        className={cn(inputClass, 'mt-2 text-[#b9966d] disabled:cursor-not-allowed disabled:opacity-50')}
+      />
     </div>
   )
 }
@@ -90,6 +102,9 @@ function Notice({ tone = 'warning', children }: { tone?: 'warning' | 'error'; ch
 
 function CollectorSection({ flow }: { flow: CheckoutFlow }) {
   const noteError = flow.errors.note
+  const primaryWallet = flow.wallets.find((wallet) => wallet.kind === 'principal')
+  const secondaryWallet = flow.wallets.find((wallet) => wallet.kind === 'secundaria')
+  const usingSecondary = Boolean(secondaryWallet && flow.selectedWallet?.id === secondaryWallet.id)
   return (
     <section aria-labelledby="collector-title">
       <h2 id="collector-title" className="font-display text-lg font-bold">Perfil do colecionador</h2>
@@ -116,7 +131,12 @@ function CollectorSection({ flow }: { flow: CheckoutFlow }) {
         </div>
         <DisplayField id="checkout-profile-name" label="Nome do perfil" value={flow.values.username} />
         <DisplayField id="checkout-wallet-address" label="Endereco da carteira" value={flow.selectedWallet?.address} placeholder="Endereco 0x da carteira" />
-        <DisplayField id="checkout-secondary-wallet" label="ENS ou carteira secundaria (opcional)" placeholder="ENS ou carteira secundaria (opcional)" />
+        <DisplayField
+          id="checkout-secondary-wallet"
+          label="Carteira secundaria (opcional)"
+          value={secondaryWallet ? `${secondaryWallet.label} · ${secondaryWallet.address}` : ''}
+          placeholder="Nenhuma carteira secundaria cadastrada"
+        />
         <div className="min-w-0 font-mono text-xs tracking-[0.04em]">
           <label htmlFor="checkout-provider">
             Tipo de carteira<span className="text-primary"> *</span>
@@ -132,21 +152,33 @@ function CollectorSection({ flow }: { flow: CheckoutFlow }) {
             ))}
           </select>
         </div>
-        <DisplayField id="checkout-referral" label="Codigo de indicacao" placeholder="Codigo de indicacao" />
+        <DisplayField id="checkout-referral" label="Codigo de indicacao" placeholder="Codigo de indicacao" unavailable />
         <TextField flow={flow} field="email" label="E-mail" type="email" autoComplete="email" />
         <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3">
-          <DisplayField id="checkout-ens-name" label="Nome ENS" placeholder=".eth" />
+          <DisplayField id="checkout-ens-name" label="Nome ENS" placeholder=".eth" unavailable />
           <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
             <span className="invisible block">TLD</span>
-            <select className={cn(inputClass, 'mt-2 bg-[#120906] text-[#b9966d]')} defaultValue=".eth" aria-label="Sufixo ENS">
+            <select className={cn(inputClass, 'mt-2 bg-[#120906] text-[#b9966d] disabled:opacity-50')} defaultValue=".eth" aria-label="Sufixo ENS" disabled aria-describedby="checkout-unavailable-note">
               <option>.eth</option>
               <option>.xyz</option>
             </select>
           </div>
         </div>
       </div>
-      <label className="mt-4 inline-flex items-center gap-2 font-mono text-sm tracking-[0.03em] text-foreground">
-        <input type="checkbox" className="size-3.5 accent-[#c57d3b]" />
+      <p id="checkout-unavailable-note" className="mt-2 font-mono text-xs text-[#a98461]">
+        Nome ENS e codigo de indicacao nao estao disponiveis nesta simulacao.
+      </p>
+      <label className="mt-4 inline-flex items-center gap-2 font-mono text-sm tracking-[0.03em] text-foreground has-[:disabled]:opacity-50">
+        <input
+          type="checkbox"
+          className="size-3.5 accent-[#c57d3b]"
+          checked={usingSecondary}
+          disabled={!secondaryWallet}
+          onChange={(event) => {
+            const wallet = event.target.checked ? secondaryWallet : primaryWallet
+            if (wallet) flow.selectWallet(wallet.id)
+          }}
+        />
         Usar outra carteira?
       </label>
       <div className="mt-4 max-w-[420px] font-mono text-sm tracking-[0.03em]">
@@ -181,7 +213,7 @@ function QuoteLines({ quote }: { quote: QuoteResponse }) {
             <p className="truncate text-sm">
               {line.title} <span className="font-normal text-[#b29274]">(x {line.quantity})</span>
             </p>
-            <p className="mt-1 truncate text-xs text-[#b29274]">ID do token: {line.edition}</p>
+            <p className="mt-1 truncate text-xs text-[#b29274]">Edicao: {line.edition}</p>
           </div>
           <p className="text-right font-display text-sm font-bold text-primarySoft">{formatEth(line.subtotalEth)}</p>
         </li>
@@ -294,7 +326,7 @@ function CheckoutWalletPanel({ flow }: { flow: CheckoutFlow }) {
             </p>
             <Button size="sm" onClick={flow.connect} disabled={!flow.selectedWallet || flow.isConnecting}>
               <Link2 size={14} />
-              {flow.isConnecting ? 'Aguardando...' : 'Conectar'}
+              {flow.isConnecting ? 'Aguardando aprovacao...' : 'Conectar carteira'}
             </Button>
           </div>
         )}
@@ -387,10 +419,10 @@ export function CheckoutPage() {
     : flow.hasPendingAttempt
       ? 'Tentar novamente'
       : isReview
-        ? 'Confirmar compra'
+        ? 'Confirmar e pagar'
         : flow.isRevalidating
           ? 'Revalidando cotacao...'
-          : 'Confirmar compra'
+          : 'Revisar pedido'
 
   const actionDisabled = isReview
     ? flow.isSubmitting || (!flow.hasPendingAttempt && (flow.quoteChangedSinceReview || !flow.connection))
@@ -405,24 +437,24 @@ export function CheckoutPage() {
         <h1 className="text-xl font-black tracking-[0.05em]">Pagamento com carteira</h1>
       </header>
       <nav className="hidden font-display text-base font-bold text-foreground md:block" aria-label="Trilha">
-        <Link to="/" search={homeSearch} className="hover:text-primarySoft">Inicio</Link>
+        <Link to="/" search={defaultCatalogSearch} className="hover:text-primarySoft">Inicio</Link>
         <span className="px-2 text-[#8f7560]">/</span>
-        <Link to="/" search={homeSearch} hash="catalogo" className="hover:text-primarySoft">Mercado</Link>
+        <Link to="/" search={defaultCatalogSearch} hash="catalogo" className="hover:text-primarySoft">Mercado</Link>
         <span className="px-2 text-[#8f7560]">/</span>
         <span>Pagamento</span>
       </nav>
 
       {flow.isLoading ? (
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_405px]" aria-busy="true">
-          <div className="h-[420px] animate-pulse rounded-xl bg-card" />
-          <div className="h-[420px] animate-pulse rounded-xl bg-card" />
+          <Skeleton className="h-[420px] rounded-xl" />
+          <Skeleton className="h-[420px] rounded-xl" />
         </div>
       ) : flow.loadError ? (
         <div className="mt-8"><Notice tone="error">Nao foi possivel carregar seu perfil e carteiras. Recarregue a pagina.</Notice></div>
       ) : isEmpty ? (
         <div className="mt-8 rounded-xl bg-card p-8 text-center">
           <h2 className="font-display text-2xl font-bold">Seu carrinho esta vazio</h2>
-          <Link to="/" search={homeSearch} className="mt-4 inline-block font-bold text-primarySoft underline">Explorar o catalogo</Link>
+          <Link to="/" search={defaultCatalogSearch} className="mt-4 inline-block font-bold text-primarySoft underline">Explorar o catalogo</Link>
         </div>
       ) : (
         <section className="mt-7 grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_405px] lg:gap-10 xl:grid-cols-[minmax(0,760px)_405px] xl:gap-16">
@@ -451,11 +483,15 @@ export function CheckoutPage() {
             {summaryQuote ? (
               <>
                 <QuoteLines quote={summaryQuote} />
-                <p className="mt-3 text-center font-mono text-xs text-[#d1b38f]">Tem um codigo promocional? Aplique aqui</p>
+                {!isReview && (
+                  <p className="mt-3 text-center font-mono text-xs text-[#d1b38f]">
+                    Tem um codigo promocional? <Link to="/carrinho" className="font-bold text-primarySoft underline">Aplique no carrinho</Link>
+                  </p>
+                )}
                 <QuoteTotals quote={summaryQuote} />
               </>
             ) : (
-              <div className="mt-3 h-[240px] animate-pulse rounded-xl bg-card" aria-busy="true" />
+              <Skeleton className="mt-3 h-[240px] rounded-xl" />
             )}
 
             {flow.submitError && <div className="mt-4"><Notice tone="error">{flow.submitError}</Notice></div>}

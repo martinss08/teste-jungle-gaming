@@ -1,4 +1,4 @@
-import type { FavoriteResponse, NftListParams, NftListResponse } from '../../contracts/api'
+import type { CatalogFacetsResponse, FavoriteResponse, NftListParams, NftListResponse, NftReviewsResponse } from '../../contracts/api'
 import { api } from '../../lib/api'
 import type { Nft } from '../../types'
 
@@ -7,8 +7,18 @@ export async function listNfts(params: NftListParams, signal?: AbortSignal) {
   return data
 }
 
+export async function getCatalogFacets() {
+  const { data } = await api.get<CatalogFacetsResponse>('/nfts/facets')
+  return data
+}
+
 export async function getNft(nftId: string) {
   const { data } = await api.get<Nft>(`/nfts/${nftId}`)
+  return data
+}
+
+export async function getNftReviews(nftId: string) {
+  const { data } = await api.get<NftReviewsResponse>(`/nfts/${nftId}/reviews`)
   return data
 }
 

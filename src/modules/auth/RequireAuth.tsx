@@ -6,10 +6,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (state) => state.location })
-  const redirect = `${location.pathname}${location.searchStr}`
+  const { pathname } = location
+  const redirect = `${pathname}${location.searchStr}`
 
   useEffect(() => {
-    if (location.pathname === '/login' || location.pathname === '/cadastro') return
+    if (pathname === '/login' || pathname === '/cadastro') return
 
     if (!isLoading && !isAuthenticated) {
       void navigate({
@@ -18,7 +19,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         replace: true,
       })
     }
-  }, [isAuthenticated, isLoading, navigate, redirect])
+  }, [isAuthenticated, isLoading, navigate, pathname, redirect])
 
   if (isLoading) {
     return (

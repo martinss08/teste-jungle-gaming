@@ -280,8 +280,11 @@ export function resolveSessionToken(token: string | null | undefined) {
   return session
 }
 
+// Token presente mas invalido/expirado retorna null: o carrinho nao cai silenciosamente para o de visitante.
 export function getCartOwner(request: Request) {
+  const hasToken = Boolean(request.headers.get('Authorization'))
   const session = resolveSession(request)
+  if (hasToken && !session) return null
   return session?.user.id ?? request.headers.get('X-Guest-Id') ?? guestCartKey
 }
 

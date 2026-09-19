@@ -1,14 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, KeyRound, Save } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Camera, Heart, KeyRound, Save } from 'lucide-react'
 import { type ChangeEvent, type FormEvent, useRef, useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Skeleton } from '../components/ui/Skeleton'
 import { Input, Label, Textarea } from '../components/ui/Field'
 import type { Profile } from '../contracts/api'
 import { parseApiError } from '../lib/apiError'
+import { formatEth } from '../lib/eth'
 import { acceptedImageTypes, ImageValidationError, resizeImageToDataUrl } from '../lib/image'
 import { changePassword, getProfile, updateAvatar, updateProfile } from '../modules/account/api'
 import { useAuth } from '../modules/auth/useAuth'
+import { useFavorites } from '../modules/catalog/useFavorites'
 
 type ProfileForm = Pick<Profile, 'name' | 'email' | 'username' | 'bio'>
 type PasswordForm = { currentPassword: string; newPassword: string; confirmPassword: string }
@@ -303,6 +307,55 @@ function ChangePasswordForm() {
   )
 }
 
+function FavoritesCard() {
+  const favorites = useFavorites()
+  const items = favorites.favorites?.items ?? []
+
+  return (
+    <Card id="favoritos" className="p-6">
+      <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+        <Heart size={18} className="text-primarySoft" />
+        Favoritos
+      </h2>
+      {favorites.error && <p role="alert" className="mt-3 text-sm font-semibold text-red-200">{favorites.error}</p>}
+      {favorites.isLoading ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-busy="true">
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+        </div>
+      ) : favorites.isError ? (
+        <div className="mt-4">
+          <p className="text-sm">Nao foi possivel carregar seus favoritos.</p>
+          <Button className="mt-3" size="sm" onClick={() => void favorites.refetch()}>Tentar novamente</Button>
+        </div>
+      ) : items.length ? (
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          {items.map((nft) => (
+            <li key={nft.id} className="flex items-center gap-3 rounded-md border border-border bg-[#170d0a] p-3">
+              <img src={nft.hero} alt="" className="size-14 rounded-md object-cover" />
+              <div className="min-w-0 flex-1">
+                <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="block truncate font-semibold hover:text-primarySoft">{nft.title}</Link>
+                <p className="text-sm text-primarySoft">{formatEth(nft.priceEth)}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Remover ${nft.title} dos favoritos`}
+                disabled={favorites.isPending(nft.id)}
+                onClick={() => favorites.toggleFavorite(nft.id)}
+              >
+                <Heart size={18} className="fill-current text-primarySoft" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-sm text-foreground/60">Voce ainda nao favoritou nenhum NFT.</p>
+      )}
+    </Card>
+  )
+}
+
 export function ProfilePage() {
   const { session } = useAuth()
   const userId = session?.user.id
@@ -322,10 +375,10 @@ export function ProfilePage() {
 
       {profileQuery.isPending ? (
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]" aria-busy="true">
-          <div className="h-[300px] animate-pulse rounded-lg bg-card" />
+          <Skeleton className="h-[300px] rounded-lg" />
           <div className="space-y-5">
-            <div className="h-[340px] animate-pulse rounded-lg bg-card" />
-            <div className="h-[180px] animate-pulse rounded-lg bg-card" />
+            <Skeleton className="h-[340px] rounded-lg" />
+            <Skeleton className="h-[180px] rounded-lg" />
           </div>
         </div>
       ) : profileQuery.isError || !profile ? (
@@ -339,6 +392,9 @@ export function ProfilePage() {
           <div className="space-y-5">
             <ProfileDetailsForm key={profile.userId} profile={profile} />
             <ChangePasswordForm />
+          </div>
+          <div className="lg:col-span-2">
+            <FavoritesCard />
           </div>
         </div>
       )}

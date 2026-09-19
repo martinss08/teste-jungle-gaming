@@ -5,22 +5,39 @@ test.beforeEach(async ({ page }) => {
   await resetMock(page)
 })
 
-test('busca, filtro, ordenacao, paginacao e historico do catalogo', async ({ page }) => {
+test('busca, filtros combinados, ordenacao, paginacao e historico do catalogo', async ({ page }) => {
+  const isMobile = (page.viewportSize()?.width ?? 0) < 768
   await page.goto('/')
-  await page.locator('input[name="q"]:visible').fill('Sage')
-  await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/q=Sage/)
+  await page.getByRole('button', { name: 'Pagina 2' }).click()
+  await expect(page).toHaveURL(/page=2/)
+
+  if (isMobile) await page.getByRole('button', { name: /^Filtros/ }).click()
+  await page.getByRole('button', { name: /^Raro/ }).click()
+  await expect(page).toHaveURL(/rarity=raro/)
+  await expect(page).toHaveURL(/page=1/)
+  await page.getByRole('button', { name: /^Polygon/ }).click()
+  await expect(page).toHaveURL(/network=Polygon/)
+  await page.getByRole('combobox', { name: 'Ordenar por:' }).selectOption('preco-maior')
+  await expect(page).toHaveURL(/sort=preco-maior/)
+  if (isMobile) await page.getByRole('button', { name: 'Ver resultados' }).click()
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
 
-  await page.goto('/?q=&rarity=raro&sort=preco-maior&page=1')
-  await expect(page.getByRole('button', { name: /Em alta|Ordenar por/i }).first()).toBeVisible()
+  const searchInput = page.locator('input[name="q"]:visible')
+  await searchInput.fill('Sage')
+  await searchInput.press('Enter')
+  await expect(page).toHaveURL(/q=Sage/)
   await expect(page).toHaveURL(/rarity=raro/)
-
-  await page.goto('/?q=zzzz&rarity=todos&sort=recentes&page=1')
-  await expect(page.locator('div:visible, h2:visible', { hasText: /Nenhum NFT encontrado/i }).first()).toBeVisible()
 
   await page.goBack()
-  await expect(page).toHaveURL(/rarity=raro/)
+  await expect(page).not.toHaveURL(/q=Sage/)
+  await expect(page).toHaveURL(/network=Polygon/)
+  await expect(page.locator('input[name="q"]:visible')).toHaveValue('')
+
+  await page.goForward()
+  await expect(page.locator('input[name="q"]:visible')).toHaveValue('Sage')
+
+  await page.goto('/?q=zzzz')
+  await expect(page.getByRole('heading', { name: /Nenhum NFT encontrado/i })).toBeVisible()
 })
 
 test('acesso direto ao detalhe e NFT inexistente', async ({ page }) => {
@@ -29,6 +46,17 @@ test('acesso direto ao detalhe e NFT inexistente', async ({ page }) => {
 
   await page.goto(`/nft/${nfts.missing}`)
   await expect(page.getByRole('heading', { name: /Pagina nao encontrada/i })).toBeVisible()
+})
+
+test('falha de rede no detalhe permite nova tentativa', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator(`a[href="/nft/${nfts.emerald}"]:visible`).first()).toBeVisible()
+  // Carrinho e cotacao ja estao em cache: a proxima requisicao REST e a do detalhe.
+  await setScenario(page, { failNextCount: 1 })
+  await page.locator(`a[href="/nft/${nfts.emerald}"]:visible`).first().click()
+  await expect(page.getByRole('heading', { name: /Nao foi possivel carregar este NFT/i })).toBeVisible()
+  await page.getByRole('button', { name: /Tentar novamente/i }).click()
+  await expect(page.getByRole('heading', { name: /Emerald Ape/i })).toBeVisible()
 })
 
 test('rotas principais nao geram overflow horizontal', async ({ page }) => {
@@ -46,12 +74,19 @@ test('rotas principais nao geram overflow horizontal', async ({ page }) => {
 test('skeletons aparecem em carregamento lento e falha permite nova tentativa', async ({ page }) => {
   await setScenario(page, { latencyMs: 800, jitterMs: 0 })
   await page.goto('/')
-  await expect(page.locator('.animate-pulse:visible').first()).toBeVisible()
+  await expect(page.locator('.skeleton:visible').first()).toBeVisible()
 
-  await setScenario(page, { latencyMs: 0, failNextCount: 6 })
-  await page.goto('/?q=falha&rarity=todos&sort=recentes&page=1')
-  await expect(page.getByText(/Nao foi possivel carregar o catalogo/i)).toBeVisible()
+  await setScenario(page, { latencyMs: 0 })
+  await page.goto('/')
+  await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
+  // A listagem tem 1 retry automatico: duas falhas seguidas levam ao estado de erro.
+  await setScenario(page, { failNextCount: 2 })
+  const searchInput = page.locator('input[name="q"]:visible')
+  await searchInput.fill('falha')
+  await searchInput.press('Enter')
+  const errorHeading = page.getByRole('heading', { name: /Nao foi possivel carregar o catalogo/i })
+  await expect(errorHeading).toBeVisible()
   await setScenario(page, { failNextCount: 0 })
   await page.getByRole('button', { name: /Tentar novamente/i }).click()
-  await expect(page.getByText(/Nao foi possivel carregar o catalogo/i)).toHaveCount(0)
+  await expect(errorHeading).toHaveCount(0)
 })

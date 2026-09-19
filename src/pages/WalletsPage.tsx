@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Skeleton } from '../components/ui/Skeleton'
 import { Input, Label, Select } from '../components/ui/Field'
 import { SUPPORTED_NETWORKS, type WalletRequest } from '../contracts/api'
 import { parseApiError } from '../lib/apiError'
@@ -221,8 +222,8 @@ export function WalletsPage() {
 
       {walletsQuery.isPending ? (
         <div className="grid gap-5 md:grid-cols-2" aria-busy="true">
-          <div className="h-[420px] animate-pulse rounded-lg bg-card" />
-          <div className="h-[420px] animate-pulse rounded-lg bg-card" />
+          <Skeleton className="h-[420px] rounded-lg" />
+          <Skeleton className="h-[420px] rounded-lg" />
         </div>
       ) : walletsQuery.isError ? (
         <Card className="p-6 text-center">

@@ -1,67 +1,20 @@
 import { Link } from '@tanstack/react-router'
-import { Heart, ShoppingBag } from 'lucide-react'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
-import { Card } from './ui/Card'
-import { formatEth } from '../lib/utils'
+import { formatEth } from '../lib/eth'
 import type { Nft } from '../types'
-import { useCart } from '../modules/cart/useCart'
-import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
-export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean }) {
-  const { addItem, isUpdating } = useCart()
-  const runProtected = useProtectedAction()
-
+export function NftCard({ nft }: { nft: Nft }) {
   return (
-    <Card className="group overflow-hidden">
-      <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="block">
-        <div className="aspect-square overflow-hidden bg-[#eadfc6]" style={{ backgroundColor: nft.accent }}>
-          <img
-            src={nft.hero}
-            alt={`Arte do NFT ${nft.title}`}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            loading="lazy"
-          />
-        </div>
-      </Link>
-      <div className="space-y-3 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Link
-              to="/nft/$nftId"
-              params={{ nftId: nft.id }}
-              className="block truncate font-bold text-foreground hover:text-primarySoft"
-            >
-              {nft.title}
-            </Link>
-            <p className="truncate text-xs text-foreground/50">{nft.creator}</p>
-          </div>
-          <button
-            type="button"
-            className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-foreground/60 hover:border-primary/70 hover:text-primarySoft"
-            aria-label={`Favoritar ${nft.title}`}
-            onClick={() => runProtected(() => undefined)}
-          >
-            <Heart size={16} />
-          </button>
-        </div>
-        {!compact && (
-          <div className="flex flex-wrap gap-2">
-            <Badge>{nft.rarity}</Badge>
-            <Badge className="border-secondary bg-secondary/60 text-success">{nft.network}</Badge>
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <span className="block text-[0.68rem] uppercase tracking-[0.16em] text-foreground/45">Preco</span>
-            <strong className="text-sm text-primarySoft">{formatEth(nft.priceEth)}</strong>
-          </div>
-          <Button size="sm" onClick={() => void addItem(nft.id)} disabled={isUpdating || nft.available < 1}>
-            <ShoppingBag size={15} />
-            Comprar
-          </Button>
+    <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="group block">
+      <div className="bg-card p-5">
+        <div className="aspect-square overflow-hidden rounded-md bg-[#efe7d2]">
+          <img src={nft.hero} alt={nft.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
         </div>
       </div>
-    </Card>
+      <h3 className="mt-3 truncate font-display text-base font-bold text-[#d3c2b3]">{nft.title}</h3>
+      <p className="font-display text-lg font-bold text-primarySoft">
+        {formatEth(nft.priceEth)}
+        {nft.available < 1 && <span className="ml-2 text-xs uppercase text-red-200">Esgotado</span>}
+      </p>
+    </Link>
   )
 }

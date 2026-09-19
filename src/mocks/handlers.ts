@@ -12,13 +12,18 @@ import type {
   UpdateAvatarRequest,
   UpdateCartItemRequest,
   UpdateProfileRequest,
+  CatalogFacetsResponse,
+  FavoriteResponse,
+  NftFacet,
+  NftReviewsResponse,
   WalletConnection,
   WalletListResponse,
   WalletRequest,
 } from '../contracts/api'
 import { SUPPORTED_NETWORKS } from '../contracts/api'
+import { buildNftReviews } from '../data/reviews'
 import { compareEth } from '../lib/eth'
-import type { CartLine, Rarity, Wallet } from '../types'
+import type { CartLine, Nft, NftTag, Rarity, Wallet } from '../types'
 import {
   addToCart,
   createOrderFromQuote,
@@ -49,10 +54,17 @@ import {
 } from './state'
 import { dropConnections, realtimeHandler, replayLastEvent, replayStaleEvent } from './realtime'
 
+// Jitter pseudoaleatorio mas reproduzivel: a sequencia de latencias se repete a cada reset da pagina.
+let requestSequence = 0
+function nextJitter(jitterMs: number) {
+  requestSequence += 1
+  return jitterMs ? (requestSequence * 7919) % jitterMs : 0
+}
+
 export const handlers = [
   http.all('/api/*', async ({ request }) => {
     const state = getState()
-    const wait = state.scenario.latencyMs + Math.floor(Math.random() * state.scenario.jitterMs)
+    const wait = state.scenario.latencyMs + nextJitter(state.scenario.jitterMs)
     await delay(wait)
 
     if (state.scenario.failNext || (state.scenario.failNextCount ?? 0) > 0) {
@@ -155,6 +167,8 @@ export const handlers = [
     const network = url.searchParams.get('network')
     const minPrice = cleanPriceParam(url.searchParams.get('minPrice'))
     const maxPrice = cleanPriceParam(url.searchParams.get('maxPrice'))
+    const tag = url.searchParams.get('tag') as NftTag | null
+    const featured = url.searchParams.get('featured') === 'true'
     const sort = url.searchParams.get('sort') ?? 'recentes'
     const page = positiveNumber(url.searchParams.get('page'), 1)
     const pageSize = positiveNumber(url.searchParams.get('pageSize'), 6)
@@ -172,13 +186,15 @@ export const handlers = [
       const matchesNetwork = !network || nft.network === network
       const matchesMinPrice = !minPrice || compareEth(nft.priceEth, minPrice) >= 0
       const matchesMaxPrice = !maxPrice || compareEth(nft.priceEth, maxPrice) <= 0
-      return matchesQuery && matchesRarity && matchesCollection && matchesCategory && matchesNetwork && matchesMinPrice && matchesMaxPrice
+      const matchesTag = !tag || Boolean(nft.tags?.includes(tag))
+      const matchesFeatured = !featured || Boolean(nft.featured)
+      return matchesQuery && matchesRarity && matchesCollection && matchesCategory && matchesNetwork && matchesMinPrice && matchesMaxPrice && matchesTag && matchesFeatured
     })
 
     items = [...items].sort((a, b) => {
       if (sort === 'preco-menor') return compareEth(a.priceEth, b.priceEth)
       if (sort === 'preco-maior') return compareEth(b.priceEth, a.priceEth)
-      return a.title.localeCompare(b.title)
+      return b.listedAt.localeCompare(a.listedAt)
     })
 
     const totalItems = items.length
@@ -194,6 +210,31 @@ export const handlers = [
     })
   }),
 
+  http.get('/api/nfts/facets', () => {
+    const items = listNfts()
+    const prices = items.map((nft) => nft.priceEth).sort(compareEth)
+    const response: CatalogFacetsResponse = {
+      total: items.length,
+      categories: countBy(items, (nft) => nft.category),
+      rarities: countBy(items, (nft) => nft.rarity),
+      networks: countBy(items, (nft) => nft.network),
+      priceRange: { minEth: prices[0] ?? '0', maxEth: prices.at(-1) ?? '0' },
+    }
+    return HttpResponse.json(response)
+  }),
+
+  http.get('/api/nfts/:nftId/reviews', ({ params }) => {
+    const nftId = String(params.nftId)
+    if (!getNft(nftId)) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
+    const items = buildNftReviews(nftId)
+    const response: NftReviewsResponse = {
+      items,
+      total: items.length,
+      averageRating: Math.round((items.reduce((sum, review) => sum + review.rating, 0) / items.length) * 10) / 10,
+    }
+    return HttpResponse.json(response)
+  }),
+
   http.get('/api/nfts/:nftId', ({ params }) => {
     const nft = getNft(String(params.nftId))
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
@@ -203,8 +244,7 @@ export const handlers = [
   http.get('/api/favorites', ({ request }) => {
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Favoritos exigem autenticacao.', 401)
-    const state = getState()
-    return HttpResponse.json({ nftIds: state.favorites[session.user.id] ?? [] })
+    return HttpResponse.json(favoritesResponse(session.user.id))
   }),
 
   http.post('/api/favorites/:nftId', ({ request, params }) => {
@@ -219,7 +259,7 @@ export const handlers = [
       state.favorites[session.user.id].push(nftId)
     }
     persistState()
-    return HttpResponse.json({ nftIds: state.favorites[session.user.id] })
+    return HttpResponse.json(favoritesResponse(session.user.id))
   }),
 
   http.delete('/api/favorites/:nftId', ({ request, params }) => {
@@ -228,17 +268,19 @@ export const handlers = [
     const state = getState()
     state.favorites[session.user.id] = (state.favorites[session.user.id] ?? []).filter((id) => id !== params.nftId)
     persistState()
-    return HttpResponse.json({ nftIds: state.favorites[session.user.id] })
+    return HttpResponse.json(favoritesResponse(session.user.id))
   }),
 
   http.get('/api/cart', ({ request }) => {
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     return HttpResponse.json(ensureCart(owner))
   }),
 
   http.post('/api/cart/items', async ({ request }) => {
     const body = await request.json() as AddCartItemRequest
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     const nft = getNft(body.nftId)
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
     if (!Number.isInteger(body.quantity) || body.quantity < 1) {
@@ -257,6 +299,7 @@ export const handlers = [
   http.patch('/api/cart/items/:nftId', async ({ request, params }) => {
     const body = await request.json() as UpdateCartItemRequest
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     const nftId = String(params.nftId)
     const nft = getNft(nftId)
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
@@ -275,6 +318,7 @@ export const handlers = [
 
   http.delete('/api/cart/items/:nftId', ({ request, params }) => {
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     const cart = ensureCart(owner)
     cart.items = cart.items.filter((line: CartLine) => line.nftId !== params.nftId)
     touchCart(owner)
@@ -288,6 +332,7 @@ export const handlers = [
     if (code !== 'KURIO10') return apiError('VALIDATION_ERROR', 'Cupom invalido.', 422, { code: 'Codigo promocional invalido.' })
 
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     const cart = ensureCart(owner)
     cart.couponCode = code
     touchCart(owner)
@@ -296,6 +341,7 @@ export const handlers = [
 
   http.delete('/api/cart/coupon', ({ request }) => {
     const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
     const cart = ensureCart(owner)
     delete cart.couponCode
     touchCart(owner)
@@ -303,11 +349,15 @@ export const handlers = [
   }),
 
   http.post('/api/cart/review', ({ request }) => {
-    return HttpResponse.json(reviewCart(getCartOwner(request)))
+    const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
+    return HttpResponse.json(reviewCart(owner))
   }),
 
   http.get('/api/quote', ({ request }) => {
-    return HttpResponse.json(createQuote(getCartOwner(request)))
+    const owner = getCartOwner(request)
+    if (!owner) return expiredSession()
+    return HttpResponse.json(createQuote(owner))
   }),
 
   http.post('/api/orders', async ({ request }) => {
@@ -360,8 +410,10 @@ export const handlers = [
   http.get('/api/orders/:orderId', ({ request, params }) => {
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Pedidos exigem autenticacao.', 401)
-    const order = getOrderForUser(String(params.orderId), session.user.id)
-    if (!order) return apiError('NOT_FOUND', 'Pedido nao encontrado.', 404)
+    const orderId = String(params.orderId)
+    if (!getState().orders[orderId]) return apiError('NOT_FOUND', 'Pedido nao encontrado.', 404)
+    const order = getOrderForUser(orderId, session.user.id)
+    if (!order) return apiError('FORBIDDEN', 'Este pedido pertence a outra conta.', 403)
     return HttpResponse.json(order)
   }),
 
@@ -569,6 +621,21 @@ function availabilityMessage(available: number, inCart: number) {
   if (available < 1) return 'Edicao esgotada.'
   if (inCart >= available) return `Voce ja tem todas as ${available} edicoes disponiveis no carrinho.`
   return `Apenas ${available} edicoes disponiveis${inCart ? ` (${inCart} ja no carrinho)` : ''}.`
+}
+
+function expiredSession() {
+  return apiError('EXPIRED_SESSION', 'Sessao expirada. Entre novamente.', 401)
+}
+
+function favoritesResponse(userId: string): FavoriteResponse {
+  const nftIds = getState().favorites[userId] ?? []
+  return { nftIds, items: nftIds.map((id) => getNft(id)).filter((nft): nft is Nft => Boolean(nft)) }
+}
+
+function countBy(items: Nft[], key: (nft: Nft) => string): NftFacet[] {
+  const counts = new Map<string, number>()
+  for (const item of items) counts.set(key(item), (counts.get(key(item)) ?? 0) + 1)
+  return [...counts].map(([value, count]) => ({ value, count }))
 }
 
 function apiError(code: ApiErrorCode, message: string, status: number, fields?: Record<string, string>) {

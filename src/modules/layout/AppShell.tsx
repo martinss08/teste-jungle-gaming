@@ -1,29 +1,28 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { Instagram, Linkedin, Menu, Search, ShoppingCart, UserRound, Youtube } from 'lucide-react'
+import { Heart, Home, Instagram, Linkedin, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { buttonVariants } from '../../components/ui/buttonVariants'
+import { Dialog } from '../../components/ui/Dialog'
 import { useCart } from '../cart/useCart'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../auth/useAuth'
 import { AuthModalPage } from '../../pages/LoginPage'
 import { useRealtime } from '../realtime/useRealtime'
+import { defaultCatalogSearch } from '../catalog/search'
 
-const links = [
-  { to: '/', label: 'Inicio' },
-  { to: '/perfil', label: 'Criadores' },
-  { to: '/carteiras', label: 'Aprenda' },
-] as const
+// Paginas editoriais ficam fora do escopo: aparecem no menu, mas sem aparentar navegacao.
+const editorialLinks = ['Criadores', 'Aprenda']
 
-const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 type AuthMode = 'login' | 'register'
 
 export function AppShell() {
-  const [open, setOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authOpen, setAuthOpen] = useState(false)
   const [authRedirect, setAuthRedirect] = useState('/')
   const { itemCount } = useCart()
-  const { session, isAuthenticated, logout } = useAuth()
+  const { session, isAuthenticated, sessionExpired, logout } = useAuth()
   const { status: realtimeStatus } = useRealtime()
   const [announcement, setAnnouncement] = useState('')
   const [hash, setHash] = useState(() => window.location.hash)
@@ -55,6 +54,13 @@ export function AppShell() {
     return () => window.removeEventListener('kurio:auth-required', handleAuthRequired)
   }, [pathname])
 
+  const openAuth = (mode: AuthMode) => {
+    setAccountOpen(false)
+    setAuthMode(mode)
+    setAuthRedirect(pathname)
+    setAuthOpen(true)
+  }
+
   useEffect(() => {
     const handleRealtime = (event: Event) => {
       const detail = (event as CustomEvent<{ type?: string; outcome?: string }>).detail
@@ -80,14 +86,14 @@ export function AppShell() {
       </div>
       <header className="hidden bg-[#110907]/94 backdrop-blur-xl md:sticky md:top-0 md:z-40 md:block">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between border-b border-border/70 px-4 sm:px-6 lg:px-[120px]">
-          <Link to="/" search={homeSearch} className="font-display text-sm font-bold uppercase tracking-[0.18em] text-foreground" aria-label="Kurio inicio">
+          <Link to="/" search={defaultCatalogSearch} className="font-display text-sm font-bold uppercase tracking-[0.18em] text-foreground" aria-label="Kurio inicio">
             Kurio
           </Link>
 
           <nav className="hidden items-center gap-9 md:flex" aria-label="Navegacao principal">
             <Link
               to="/"
-              search={homeSearch}
+              search={defaultCatalogSearch}
               className={cn(
                 'border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft',
                 isHome ? 'border-primary text-primary' : 'border-transparent text-foreground/62',
@@ -98,23 +104,18 @@ export function AppShell() {
             <a href="/#catalogo" className={cn('border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/62')}>
               Mercado
             </a>
-            {links.slice(1).map((link) => (
-              <Link
-                key={link.label}
-                to={link.to}
-                className="border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/62 transition hover:border-primary/60 hover:text-primarySoft"
-                activeProps={{ className: 'border-primary text-primary' }}
-              >
-                {link.label}
-              </Link>
+            {editorialLinks.map((label) => (
+              <span key={label} className="cursor-not-allowed border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/35" aria-disabled="true" title="Em breve">
+                {label}
+              </span>
             ))}
           </nav>
 
           <div className="hidden items-center gap-5 md:flex">
-            <button type="button" className="text-foreground/70 hover:text-primarySoft" aria-label="Buscar">
+            <Link to="/" search={defaultCatalogSearch} hash="catalogo" className="text-foreground/70 hover:text-primarySoft" aria-label="Buscar no catalogo">
               <Search size={21} />
-            </button>
-            <Link to="/carrinho">
+            </Link>
+            <Link to="/carrinho" aria-label={`Carrinho com ${itemCount} itens`}>
               <span className="relative inline-grid size-8 place-items-center text-foreground/70 hover:text-primarySoft">
                 <ShoppingCart size={21} />
                 <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-primary text-[0.62rem] font-bold text-[#160b08]">
@@ -127,76 +128,87 @@ export function AppShell() {
                 <Link to="/perfil" className="font-display text-sm font-bold text-primarySoft hover:text-primary">
                   {session?.user.name}
                 </Link>
+                <Link to="/carteiras" className="font-display text-sm font-bold text-foreground/70 hover:text-primarySoft" activeProps={{ className: 'text-primary' }}>
+                  Carteiras
+                </Link>
                 <Button type="button" size="sm" variant="secondary" onClick={() => void logout()}>
                   Sair
                 </Button>
               </>
             ) : (
-              <Link to="/login" search={{ redirect: pathname }}>
-                <Button type="button" size="sm">
-                  <UserRound size={15} />
-                  Entrar
-                </Button>
+              <Link to="/login" search={{ redirect: pathname }} className={buttonVariants({ size: 'sm' })}>
+                <UserRound size={15} />
+                Entrar
               </Link>
             )}
           </div>
-
-          <button
-            className="grid size-10 place-items-center rounded-md border border-border md:hidden"
-            type="button"
-            aria-label="Abrir menu"
-            onClick={() => setOpen((value) => !value)}
-          >
-            <Menu size={20} />
-          </button>
-        </div>
-        <div className={cn('border-t border-border bg-[#110907] px-4 py-3 md:hidden', !open && 'hidden')}>
-          <nav className="grid gap-2">
-            <Link
-              to="/"
-              search={homeSearch}
-              className={cn('border-b-2 px-3 py-2 text-sm font-medium hover:bg-muted', isHome ? 'border-primary text-primary' : 'border-transparent text-foreground/80')}
-              onClick={() => setOpen(false)}
-            >
-              Inicio
-            </Link>
-            <a
-              href="/#catalogo"
-              className={cn('border-b-2 px-3 py-2 text-sm font-medium hover:bg-muted', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/80')}
-              onClick={() => setOpen(false)}
-            >
-              Mercado
-            </a>
-            {links.slice(1).map((link) => (
-              <Link
-                key={link.label}
-                to={link.to}
-                className="border-b-2 border-transparent px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted"
-                activeProps={{ className: 'border-primary text-primary' }}
-                onClick={() => setOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            {isAuthenticated ? (
-              <Button type="button" variant="secondary" className="w-full" onClick={() => void logout()}>
-                Sair
-              </Button>
-            ) : (
-              <Link to="/login" search={{ redirect: pathname }} onClick={() => setOpen(false)}>
-                <Button type="button" variant="secondary" className="w-full">
-                  <UserRound size={16} />
-                  Entrar ou cadastrar
-                </Button>
-              </Link>
-            )}
-          </nav>
         </div>
       </header>
 
-      <main id="conteudo-principal" tabIndex={-1}>
+      {sessionExpired && !isAuthenticated && !authOpen && (
+        <div role="status" className="border-b border-primary/60 bg-[#3a1d09] px-4 py-3 text-center text-sm">
+          Sua sessao expirou.{' '}
+          <button type="button" className="font-bold text-primarySoft underline" onClick={() => openAuth('login')}>
+            Entrar novamente
+          </button>
+        </div>
+      )}
+
+      <main id="conteudo-principal" tabIndex={-1} className="pb-[110px] md:pb-0">
         <Outlet />
       </main>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-[94px] max-w-md items-center justify-around rounded-t-[28px] bg-card px-7 text-[#dfb98c] shadow-[0_-18px_50px_rgba(0,0,0,0.3)] md:hidden" aria-label="Navegacao mobile">
+        <Link to="/" search={defaultCatalogSearch} aria-label="Inicio">
+          <Home size={22} className="fill-current" />
+        </Link>
+        <Link to="/perfil" hash="favoritos" aria-label="Favoritos">
+          <Heart size={22} className="fill-current" />
+        </Link>
+        <Link to="/" search={defaultCatalogSearch} hash="busca" className="-mt-12 grid size-16 place-items-center rounded-full bg-[#c57d3b] text-white shadow-glow" aria-label="Buscar no catalogo">
+          <Search size={26} />
+        </Link>
+        <Link to="/carrinho" aria-label={`Carrinho com ${itemCount} itens`} className="relative">
+          <ShoppingCart size={22} className="fill-current" />
+          {itemCount > 0 && <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-primary text-[0.58rem] text-[#120906]" aria-hidden="true">{itemCount}</span>}
+        </Link>
+        <button type="button" aria-label="Conta" aria-haspopup="dialog" aria-expanded={accountOpen} onClick={() => setAccountOpen(true)}>
+          <UserRound size={22} className="fill-current" />
+        </button>
+      </nav>
+
+      {accountOpen && (
+        <Dialog labelledBy="account-title" placement="bottom" onClose={() => setAccountOpen(false)} className="w-full rounded-t-[28px] bg-card px-6 pb-10 pt-6 font-mono">
+          <div className="flex items-center justify-between">
+            <h2 id="account-title" className="text-lg font-black">{isAuthenticated ? session?.user.name : 'Sua conta'}</h2>
+            <button type="button" className="grid size-9 place-items-center rounded-full border border-border text-primarySoft" aria-label="Fechar menu da conta" onClick={() => setAccountOpen(false)}>
+              <X size={18} />
+            </button>
+          </div>
+          {isAuthenticated ? (
+            <div className="mt-6 grid gap-3">
+              <p className="text-sm text-[#caa677]">{session?.user.email}</p>
+              <Link to="/perfil" className={buttonVariants({ variant: 'secondary' })} onClick={() => setAccountOpen(false)}>Perfil</Link>
+              <Link to="/carteiras" className={buttonVariants({ variant: 'secondary' })} onClick={() => setAccountOpen(false)}>Carteiras</Link>
+              <Button
+                type="button"
+                onClick={() => {
+                  setAccountOpen(false)
+                  void logout()
+                }}
+              >
+                Sair
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-3">
+              <p className="text-sm text-[#caa677]">Entre para acessar perfil, carteiras, favoritos e pedidos.</p>
+              <Button type="button" onClick={() => openAuth('login')}>Entrar</Button>
+              <Button type="button" variant="secondary" onClick={() => openAuth('register')}>Criar conta</Button>
+            </div>
+          )}
+        </Dialog>
+      )}
 
       <footer className="hidden bg-[#160b08] md:block">
         <div className="mx-auto max-w-[1440px] px-4 pb-10 sm:px-6 lg:px-[120px]">

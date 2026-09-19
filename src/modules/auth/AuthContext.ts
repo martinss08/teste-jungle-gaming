@@ -5,6 +5,8 @@ export type AuthContextValue = {
   session: SessionResponse | null
   isLoading: boolean
   isAuthenticated: boolean
+  // A ultima sessao terminou por expiracao (e nao por logout); usado para avisar e retomar o fluxo.
+  sessionExpired: boolean
   login: (email: string, password: string) => Promise<SessionResponse>
   register: (name: string, email: string, password: string) => Promise<SessionResponse>
   logout: () => Promise<void>

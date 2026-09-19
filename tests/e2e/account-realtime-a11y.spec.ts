@@ -35,12 +35,20 @@ test('avatar simulado e troca de usuario nao vazam dados', async ({ page }) => {
   await expect(page.getByText(user.name)).toHaveCount(0)
 })
 
-test('favoritos fazem rollback quando a API falha', async ({ page }) => {
+test('favoritos fazem rollback quando a API falha e recuperam na nova tentativa', async ({ page }) => {
   await page.goto(`/nft/${nfts.sage}`)
-  await expect(page.locator('button:visible', { hasText: /Favoritar/i })).toBeVisible()
+  const favorite = page.getByRole('button', { name: /^(Favoritar|Favorito|Remover dos favoritos)$/ })
+  await expect(favorite).toHaveAttribute('aria-pressed', 'false')
+
   await setScenario(page, { failNext: true })
-  await page.locator('button:visible', { hasText: /Favoritar/i }).click()
-  await expect(page.locator('button:visible', { hasText: /Favoritar/i })).toBeVisible()
+  await favorite.click()
+  await expect(page.getByRole('alert').filter({ hasText: /favoritos/i })).toBeVisible()
+  await expect(favorite).toHaveAttribute('aria-pressed', 'false')
+
+  await favorite.click()
+  await expect(favorite).toHaveAttribute('aria-pressed', 'true')
+  await page.goto('/perfil')
+  await expect(page.locator('#favoritos').getByRole('link', { name: /Sage Hood/i })).toBeVisible()
 })
 
 test('carteiras valida endereco e cadastra secundaria', async ({ page }) => {
@@ -89,8 +97,17 @@ test('navegacao por teclado, foco do modal e validacoes acessiveis', async ({ pa
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent('kurio:auth-required', { detail: { mode: 'login', redirect: '/' } }))
   })
-  await expect(page.locator('input[name="email"]')).toBeVisible()
-  await expect(page.locator('form').getByRole('button', { name: /^Entrar$/i })).toBeVisible()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(page.locator('input[name="email"]')).toBeFocused()
+
+  await page.keyboard.press('Shift+Tab')
+  await expect.poll(() => dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
+  for (let index = 0; index < 12; index += 1) await page.keyboard.press('Tab')
+  await expect.poll(() => dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
+
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
 })
 
 test('responsividade das rotas autenticadas', async ({ page }) => {

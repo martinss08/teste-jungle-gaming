@@ -3,6 +3,8 @@ import { Link, useSearch } from '@tanstack/react-router'
 import { CheckCircle2, Clock3, ExternalLink, XCircle } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '../components/ui/Button'
+import { buttonVariants } from '../components/ui/buttonVariants'
+import { Skeleton } from '../components/ui/Skeleton'
 import { Card } from '../components/ui/Card'
 import type { Order } from '../contracts/api'
 import { parseApiError } from '../lib/apiError'
@@ -11,8 +13,8 @@ import { useAuth } from '../modules/auth/useAuth'
 import { getOrder } from '../modules/checkout/api'
 import { keepNewer } from '../modules/realtime/cache'
 import { useRealtime } from '../modules/realtime/useRealtime'
+import { defaultCatalogSearch } from '../modules/catalog/search'
 
-const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 const statusContent = {
   pendente: {
@@ -126,13 +128,16 @@ export function ConfirmationPage() {
     void queryClient.invalidateQueries({ queryKey: ['nft'] })
   }, [status, queryClient])
 
-  if (!pedido || (orderQuery.isError && parseApiError(orderQuery.error, '').status === 404)) {
+  const errorStatus = orderQuery.isError ? parseApiError(orderQuery.error, '').status : undefined
+  if (!pedido || errorStatus === 404 || errorStatus === 403) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-display text-3xl font-bold">Pedido nao encontrado</h1>
-        <p className="mt-3 text-foreground/60">Confira o link ou volte ao catalogo.</p>
-        <Link to="/" search={homeSearch} className="mt-6 inline-block">
-          <Button>Voltar ao catalogo</Button>
+        <h1 className="font-display text-3xl font-bold">{errorStatus === 403 ? 'Pedido de outra conta' : 'Pedido nao encontrado'}</h1>
+        <p className="mt-3 text-foreground/60">
+          {errorStatus === 403 ? 'Este pedido nao pertence a conta conectada.' : 'Confira o link ou volte ao catalogo.'}
+        </p>
+        <Link to="/" search={defaultCatalogSearch} className={buttonVariants({ className: 'mt-6' })}>
+          Voltar ao catalogo
         </Link>
       </div>
     )
@@ -140,7 +145,7 @@ export function ConfirmationPage() {
 
   if (orderQuery.isError) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center" role="alert">
         <h1 className="font-display text-3xl font-bold">Nao foi possivel carregar o pedido</h1>
         <Button className="mt-6" onClick={() => void orderQuery.refetch()}>Tentar novamente</Button>
       </div>
@@ -150,7 +155,7 @@ export function ConfirmationPage() {
   if (!order) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10" aria-busy="true">
-        <div className="h-[420px] animate-pulse rounded-xl bg-card" />
+        <Skeleton className="h-[420px] rounded-xl" />
       </div>
     )
   }
@@ -173,20 +178,14 @@ export function ConfirmationPage() {
         <Receipt order={order} />
         <div className="flex flex-col gap-3 border-t border-border p-6 sm:flex-row">
           {order.status === 'recusado' ? (
-            <Link to="/carrinho">
-              <Button>Voltar ao carrinho</Button>
-            </Link>
+            <Link to="/carrinho" className={buttonVariants()}>Voltar ao carrinho</Link>
           ) : (
-            <Link to="/" search={homeSearch}>
-              <Button>Voltar ao catalogo</Button>
-            </Link>
+            <Link to="/" search={defaultCatalogSearch} className={buttonVariants()}>Voltar ao catalogo</Link>
           )}
           {order.status === 'confirmado' && (
-            <a href={order.explorerUrl} target="_blank" rel="noreferrer noopener">
-              <Button variant="secondary">
-                Ver no explorador (simulado)
-                <ExternalLink size={16} />
-              </Button>
+            <a href={order.explorerUrl} target="_blank" rel="noreferrer noopener" className={buttonVariants({ variant: 'secondary' })}>
+              Ver no explorador (simulado)
+              <ExternalLink size={16} />
             </a>
           )}
         </div>
