@@ -111,7 +111,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return queryClient.query({ queryKey: quoteKey, queryFn: getQuote, staleTime: 0 })
     },
     getQuantityInCart: (nftId: string) => items.find((item) => item.nftId === nftId)?.quantity ?? 0,
-    itemCount: items.reduce((total, line) => total + line.quantity, 0),
+    itemCount: items.length,
     subtotalEth: quote?.subtotalEth ?? zeroEth,
     discountEth: quote?.discountEth ?? zeroEth,
     networkFeeEth: quote?.networkFeeEth ?? zeroEth,

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { EyeOff, X } from 'lucide-react'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { createPortal } from 'react-dom'
 import axios from 'axios'
 import { cn } from '../lib/utils'
@@ -18,28 +18,21 @@ export function AuthModalPage({
   mode,
   redirect,
   onClose,
+  onSuccess,
   onModeChange,
 }: {
   mode: AuthMode
   redirect?: string
   onClose?: () => void
+  onSuccess?: () => void
   onModeChange?: (mode: AuthMode) => void
 }) {
   const isRegister = mode === 'register'
-  const authForm = useAuthForm(isRegister, redirect, onClose)
+  const authForm = useAuthForm(isRegister, redirect, onSuccess ?? onClose)
   const navigate = useNavigate()
   const redirectValue = redirect ?? getAuthRedirectSearch().redirect
   const redirectSearch = { redirect: redirectValue }
   const title = isRegister ? 'Criar conta' : 'Entrar'
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
 
   return createPortal((
     <div className="fixed inset-0 z-50 grid min-h-screen place-items-center overflow-y-auto bg-[#080403]/72 px-4 py-6 font-mono text-[#f8ead6] backdrop-blur-sm">

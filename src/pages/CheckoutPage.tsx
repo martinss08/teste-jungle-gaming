@@ -34,7 +34,7 @@ function TextField({
   const id = `checkout-${field}`
   const error = flow.errors[field]
   return (
-    <div className="min-w-0 font-display text-base">
+    <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
       <label htmlFor={id}>
         {label}
         <span className="text-primary"> *</span>
@@ -50,6 +50,25 @@ function TextField({
         className={cn(inputClass, 'mt-2')}
       />
       <FieldError id={`${id}-error`} message={error} />
+    </div>
+  )
+}
+
+function DisplayField({
+  id,
+  label,
+  value,
+  placeholder,
+}: {
+  id: string
+  label: string
+  value?: string
+  placeholder?: string
+}) {
+  return (
+    <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} value={value ?? ''} placeholder={placeholder} readOnly className={cn(inputClass, 'mt-2 text-[#b9966d]')} />
     </div>
   )
 }
@@ -73,84 +92,11 @@ function CollectorSection({ flow }: { flow: CheckoutFlow }) {
   const noteError = flow.errors.note
   return (
     <section aria-labelledby="collector-title">
-      <h2 id="collector-title" className="font-display text-xl font-bold">Perfil do colecionador</h2>
-      <div className="mt-4 grid gap-5 md:grid-cols-2">
+      <h2 id="collector-title" className="font-display text-lg font-bold">Perfil do colecionador</h2>
+      <div className="mt-4 grid gap-x-5 gap-y-4 md:grid-cols-2">
         <TextField flow={flow} field="displayName" label="Nome de exibicao" autoComplete="name" />
         <TextField flow={flow} field="username" label="Nome de usuario" autoComplete="username" />
-        <TextField flow={flow} field="email" label="E-mail" type="email" autoComplete="email" />
-      </div>
-      <div className="mt-5 max-w-[420px] font-display text-base">
-        <label htmlFor="checkout-note">Observacao do colecionador (opcional)</label>
-        <textarea
-          id="checkout-note"
-          value={flow.values.note}
-          onChange={(event) => flow.setField('note', event.target.value)}
-          maxLength={280}
-          aria-invalid={Boolean(noteError)}
-          aria-describedby={noteError ? 'checkout-note-error' : undefined}
-          className="mt-2 h-[120px] w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent p-3 text-sm text-foreground outline-none focus:border-primary"
-        />
-        <FieldError id="checkout-note-error" message={noteError} />
-      </div>
-    </section>
-  )
-}
-
-function WalletSection({ flow }: { flow: CheckoutFlow }) {
-  const providerLabel = walletProviders.find((item) => item.id === flow.connection?.provider)?.label
-
-  return (
-    <section aria-labelledby="wallet-title" className="mt-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="wallet-title" className="font-display text-xl font-bold">Carteira e rede</h2>
-        <Link to="/carteiras" className="font-display text-sm font-bold text-primarySoft hover:text-primary">
-          Gerenciar carteiras
-        </Link>
-      </div>
-
-      {flow.wallets.length === 0 ? (
-        <p className="mt-4 rounded-xl bg-card p-4 text-sm text-[#caa677]">
-          Voce ainda nao tem carteiras cadastradas. <Link to="/carteiras" className="font-bold text-primarySoft underline">Cadastre uma carteira</Link> para concluir a compra.
-        </p>
-      ) : (
-        <fieldset className="mt-4 grid gap-3" aria-describedby={flow.errors.walletId ? 'checkout-wallet-error' : undefined}>
-          <legend className="sr-only">Carteira cadastrada</legend>
-          {flow.wallets.map((wallet) => {
-            const checked = wallet.id === flow.selectedWallet?.id
-            return (
-              <label
-                key={wallet.id}
-                className={cn(
-                  'flex min-w-0 cursor-pointer items-center gap-4 rounded-xl bg-card px-4 py-3',
-                  checked ? 'ring-1 ring-primary' : '',
-                  wallet.status !== 'conectada' ? 'opacity-70' : '',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="checkout-wallet"
-                  checked={checked}
-                  onChange={() => flow.selectWallet(wallet.id)}
-                  className="size-4 accent-[#c57d3b]"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display font-bold">{wallet.label}</span>
-                  <span className="block truncate text-sm text-[#caa677]" title={`${wallet.address} · Rede ${wallet.network}`}>
-                    {wallet.address} · Rede {wallet.network}
-                  </span>
-                </span>
-                {wallet.status !== 'conectada' && (
-                  <span className="rounded-full border border-border px-2 py-0.5 text-xs text-[#caa677]">Pendente</span>
-                )}
-              </label>
-            )
-          })}
-          <FieldError id="checkout-wallet-error" message={flow.errors.walletId} />
-        </fieldset>
-      )}
-
-      <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <div className="min-w-0 font-display text-base">
+        <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
           <label htmlFor="checkout-network">
             Rede<span className="text-primary"> *</span>
           </label>
@@ -160,7 +106,7 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
             onChange={(event) => flow.setNetwork(event.target.value)}
             aria-invalid={Boolean(flow.errors.network)}
             aria-describedby={flow.errors.network ? 'checkout-network-error' : undefined}
-            className={cn(inputClass, 'mt-2 bg-[#120906]')}
+            className={cn(inputClass, 'mt-2 bg-[#120906] text-[#b9966d]')}
           >
             {SUPPORTED_NETWORKS.map((network) => (
               <option key={network} value={network}>{network}</option>
@@ -168,51 +114,53 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
           </select>
           <FieldError id="checkout-network-error" message={flow.errors.network} />
         </div>
-
-        <fieldset className="font-display text-base">
-          <legend>Tipo de carteira</legend>
-          <div className="mt-2 grid gap-2">
-            {walletProviders.map((item) => (
-              <label key={item.id} className="flex items-center gap-3 rounded-sm border border-border px-3 py-2 text-sm">
-                <input
-                  type="radio"
-                  name="checkout-provider"
-                  checked={flow.provider === item.id}
-                  onChange={() => flow.setProvider(item.id)}
-                  className="size-4 accent-[#c57d3b]"
-                />
-                {item.label}
-              </label>
+        <DisplayField id="checkout-profile-name" label="Nome do perfil" value={flow.values.username} />
+        <DisplayField id="checkout-wallet-address" label="Endereco da carteira" value={flow.selectedWallet?.address} placeholder="Endereco 0x da carteira" />
+        <DisplayField id="checkout-secondary-wallet" label="ENS ou carteira secundaria (opcional)" placeholder="ENS ou carteira secundaria (opcional)" />
+        <div className="min-w-0 font-mono text-xs tracking-[0.04em]">
+          <label htmlFor="checkout-provider">
+            Tipo de carteira<span className="text-primary"> *</span>
+          </label>
+          <select
+            id="checkout-provider"
+            value={flow.provider}
+            onChange={(event) => flow.setProvider(event.target.value as typeof flow.provider)}
+            className={cn(inputClass, 'mt-2 bg-[#120906] text-[#b9966d]')}
+          >
+            {walletProviders.map((provider) => (
+              <option key={provider.id} value={provider.id}>{provider.label}</option>
             ))}
+          </select>
+        </div>
+        <DisplayField id="checkout-referral" label="Codigo de indicacao" placeholder="Codigo de indicacao" />
+        <TextField flow={flow} field="email" label="E-mail" type="email" autoComplete="email" />
+        <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3">
+          <DisplayField id="checkout-ens-name" label="Nome ENS" placeholder=".eth" />
+          <div className="min-w-0 font-mono text-sm tracking-[0.03em]">
+            <span className="invisible block">TLD</span>
+            <select className={cn(inputClass, 'mt-2 bg-[#120906] text-[#b9966d]')} defaultValue=".eth" aria-label="Sufixo ENS">
+              <option>.eth</option>
+              <option>.xyz</option>
+            </select>
           </div>
-        </fieldset>
+        </div>
       </div>
-
-      <div className="mt-5 rounded-xl bg-card p-4" aria-live="polite">
-        {flow.connection ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-sm">
-              <CheckCircle2 size={18} className="text-success" />
-              Conectada via {providerLabel} · {flow.connection.address} · {flow.connection.network}
-            </p>
-            <Button variant="secondary" size="sm" onClick={flow.disconnect}>
-              <Unlink size={15} />
-              Desconectar
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-sm text-[#caa677]">
-              <WalletCards size={18} />
-              Carteira desconectada
-            </p>
-            <Button size="sm" onClick={flow.connect} disabled={!flow.selectedWallet || flow.isConnecting}>
-              <Link2 size={15} />
-              {flow.isConnecting ? 'Aguardando aprovacao...' : 'Conectar carteira'}
-            </Button>
-          </div>
-        )}
-        <FieldError id="checkout-connection-error" message={flow.errors.connection} />
+      <label className="mt-4 inline-flex items-center gap-2 font-mono text-sm tracking-[0.03em] text-foreground">
+        <input type="checkbox" className="size-3.5 accent-[#c57d3b]" />
+        Usar outra carteira?
+      </label>
+      <div className="mt-4 max-w-[420px] font-mono text-sm tracking-[0.03em]">
+        <label htmlFor="checkout-note">Observacao do colecionador (opcional)</label>
+        <textarea
+          id="checkout-note"
+          value={flow.values.note}
+          onChange={(event) => flow.setField('note', event.target.value)}
+          maxLength={280}
+          aria-invalid={Boolean(noteError)}
+          aria-describedby={noteError ? 'checkout-note-error' : undefined}
+          className="mt-2 h-[140px] w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent p-3 text-sm text-foreground outline-none focus:border-primary"
+        />
+        <FieldError id="checkout-note-error" message={noteError} />
       </div>
     </section>
   )
@@ -220,32 +168,38 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
 
 function QuoteLines({ quote }: { quote: QuoteResponse }) {
   return (
-    <ul className="mt-3 space-y-3">
+    <div className="mt-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_96px] border-b border-border pb-2 font-mono text-xs font-bold">
+        <span>NFTs</span>
+        <span className="text-right">Subtotal</span>
+      </div>
+    <ul className="mt-2 space-y-2">
       {quote.lines.map((line) => (
-        <li key={line.nftId} className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-3 bg-card p-2 sm:grid-cols-[64px_minmax(0,1fr)_auto]">
-          <img src={line.imageUrl} alt={line.title} className="size-14 rounded-md bg-[#efe7d2] object-cover sm:size-16" />
+        <li key={line.nftId} className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-center gap-2 bg-card p-2">
+          <img src={line.imageUrl} alt={line.title} className="size-12 rounded-sm bg-[#efe7d2] object-cover" />
           <div className="min-w-0 font-display font-bold">
-            <p className="truncate text-base">
+            <p className="truncate text-sm">
               {line.title} <span className="font-normal text-[#b29274]">(x {line.quantity})</span>
             </p>
-            <p className="mt-1 text-sm text-[#b29274]">Edicao: {line.edition}</p>
+            <p className="mt-1 truncate text-xs text-[#b29274]">ID do token: {line.edition}</p>
           </div>
-          <p className="col-span-2 text-right font-display text-base font-bold text-primarySoft sm:col-span-1">{formatEth(line.subtotalEth)}</p>
+          <p className="text-right font-display text-sm font-bold text-primarySoft">{formatEth(line.subtotalEth)}</p>
         </li>
       ))}
     </ul>
+    </div>
   )
 }
 
 function QuoteTotals({ quote }: { quote: QuoteResponse }) {
   return (
-    <dl className="mt-4 grid gap-3 border-b border-border pb-4 font-display text-base">
+    <dl className="mt-4 grid gap-3 border-b border-border pb-4 font-mono text-sm">
       <div className="flex min-w-0 justify-between gap-3">
         <dt>Subtotal</dt>
         <dd>{formatEth(quote.subtotalEth)}</dd>
       </div>
       <div className="flex min-w-0 justify-between gap-3">
-        <dt>Desconto{quote.couponCode ? ` (${quote.couponCode})` : ''}</dt>
+        <dt>Desconto do lancamento</dt>
         <dd>(-) {formatEth(quote.discountEth)}</dd>
       </div>
       <div>
@@ -255,11 +209,98 @@ function QuoteTotals({ quote }: { quote: QuoteResponse }) {
         </div>
         <p className="text-right text-xs text-primarySoft">Taxa estimada</p>
       </div>
-      <div className="flex min-w-0 justify-between gap-3 pt-2 text-lg font-bold">
+      <div className="flex min-w-0 justify-between gap-3 border-t border-border pt-3 text-base font-bold">
         <dt>Total</dt>
         <dd className="text-primarySoft">{formatEth(quote.totalEth)}</dd>
       </div>
     </dl>
+  )
+}
+
+function CheckoutWalletPanel({ flow }: { flow: CheckoutFlow }) {
+  const providerLabel = walletProviders.find((item) => item.id === flow.connection?.provider)?.label
+
+  return (
+    <section className="mt-4" aria-labelledby="checkout-wallet-title">
+      <h3 id="checkout-wallet-title" className="text-center font-display text-base font-bold">Carteira e rede</h3>
+      {flow.wallets.length === 0 ? (
+        <p className="mt-3 border border-border p-3 text-sm text-[#caa677]">
+          Voce ainda nao tem carteiras cadastradas. <Link to="/carteiras" className="font-bold text-primarySoft underline">Cadastre uma carteira</Link>.
+        </p>
+      ) : (
+        <fieldset className="mt-3 grid gap-3" aria-describedby={flow.errors.walletId ? 'checkout-wallet-error' : undefined}>
+          <legend className="sr-only">Carteira cadastrada</legend>
+          {flow.wallets.map((wallet) => {
+            const checked = wallet.id === flow.selectedWallet?.id
+            return (
+              <label
+                key={wallet.id}
+                className={cn(
+                  'flex min-w-0 cursor-pointer items-center gap-3 border border-border px-3 py-2 font-mono text-sm',
+                  checked && 'border-primary',
+                  wallet.status !== 'conectada' && 'opacity-70',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="checkout-wallet"
+                  checked={checked}
+                  onChange={() => flow.selectWallet(wallet.id)}
+                  className="size-3.5 accent-[#c57d3b]"
+                />
+                <span className="min-w-0">
+                  <span className="block font-bold">{wallet.label}</span>
+                  <span className="block truncate text-xs text-[#caa677]">{wallet.network} · {wallet.address}</span>
+                </span>
+              </label>
+            )
+          })}
+          <FieldError id="checkout-wallet-error" message={flow.errors.walletId} />
+        </fieldset>
+      )}
+
+      <div className="mt-3 border border-border px-3 py-2">
+        <div className="flex flex-wrap gap-2 text-[0.62rem] font-bold uppercase text-primary">
+          {walletProviders.map((provider) => (
+            <button
+              key={provider.id}
+              type="button"
+              className={cn('rounded-sm px-2 py-1', flow.provider === provider.id ? 'bg-[#3a1d09]' : 'text-[#9b826d]')}
+              onClick={() => flow.setProvider(provider.id)}
+            >
+              {provider.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 border border-border p-3" aria-live="polite">
+        {flow.connection ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex min-w-0 items-center gap-2 text-xs">
+              <CheckCircle2 size={16} className="shrink-0 text-success" />
+              <span className="truncate">Conectada via {providerLabel} · {flow.connection.network}</span>
+            </p>
+            <Button variant="secondary" size="sm" onClick={flow.disconnect}>
+              <Unlink size={14} />
+              Desconectar
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-xs text-[#caa677]">
+              <WalletCards size={16} />
+              Carteira desconectada
+            </p>
+            <Button size="sm" onClick={flow.connect} disabled={!flow.selectedWallet || flow.isConnecting}>
+              <Link2 size={14} />
+              {flow.isConnecting ? 'Aguardando...' : 'Conectar'}
+            </Button>
+          </div>
+        )}
+        <FieldError id="checkout-connection-error" message={flow.errors.connection} />
+      </div>
+    </section>
   )
 }
 
@@ -346,17 +387,17 @@ export function CheckoutPage() {
     : flow.hasPendingAttempt
       ? 'Tentar novamente'
       : isReview
-        ? 'Confirmar e pagar'
+        ? 'Confirmar compra'
         : flow.isRevalidating
           ? 'Revalidando cotacao...'
-          : 'Revisar pedido'
+          : 'Confirmar compra'
 
   const actionDisabled = isReview
     ? flow.isSubmitting || (!flow.hasPendingAttempt && (flow.quoteChangedSinceReview || !flow.connection))
     : flow.isRevalidating || Boolean(quote?.stale) || !summaryQuote
 
   return (
-    <div className="mx-auto max-w-[1440px] overflow-x-hidden px-6 pb-14 pt-8 font-mono sm:px-6 md:pt-9 md:font-sans lg:px-[120px]">
+    <div className="mx-auto max-w-[1440px] overflow-x-hidden px-6 pb-8 pt-8 font-mono sm:px-6 md:pt-9 lg:px-[60px] xl:px-[120px]">
       <header className="grid grid-cols-[44px_1fr] items-center gap-4 md:hidden">
         <Link to="/carrinho" className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar ao carrinho">
           <ArrowLeft size={19} />
@@ -366,7 +407,7 @@ export function CheckoutPage() {
       <nav className="hidden font-display text-base font-bold text-foreground md:block" aria-label="Trilha">
         <Link to="/" search={homeSearch} className="hover:text-primarySoft">Inicio</Link>
         <span className="px-2 text-[#8f7560]">/</span>
-        <Link to="/carrinho" className="hover:text-primarySoft">Carrinho</Link>
+        <Link to="/" search={homeSearch} hash="catalogo" className="hover:text-primarySoft">Mercado</Link>
         <span className="px-2 text-[#8f7560]">/</span>
         <span>Pagamento</span>
       </nav>
@@ -384,16 +425,13 @@ export function CheckoutPage() {
           <Link to="/" search={homeSearch} className="mt-4 inline-block font-bold text-primarySoft underline">Explorar o catalogo</Link>
         </div>
       ) : (
-        <section className="mt-8 grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_405px] lg:gap-16">
+        <section className="mt-7 grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_405px] lg:gap-10 xl:grid-cols-[minmax(0,760px)_405px] xl:gap-16">
           <div className="min-w-0 space-y-4">
             {flow.notice && <Notice>{flow.notice}</Notice>}
             {isReview ? (
               <ReviewSection flow={flow} />
             ) : (
-              <>
-                <CollectorSection flow={flow} />
-                <WalletSection flow={flow} />
-              </>
+              <CollectorSection flow={flow} />
             )}
           </div>
 
@@ -413,6 +451,7 @@ export function CheckoutPage() {
             {summaryQuote ? (
               <>
                 <QuoteLines quote={summaryQuote} />
+                <p className="mt-3 text-center font-mono text-xs text-[#d1b38f]">Tem um codigo promocional? Aplique aqui</p>
                 <QuoteTotals quote={summaryQuote} />
               </>
             ) : (
@@ -420,6 +459,8 @@ export function CheckoutPage() {
             )}
 
             {flow.submitError && <div className="mt-4"><Notice tone="error">{flow.submitError}</Notice></div>}
+
+            {!isReview && <CheckoutWalletPanel flow={flow} />}
 
             <Button
               className="mt-6 w-full"

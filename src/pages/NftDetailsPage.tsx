@@ -24,6 +24,61 @@ type PurchaseState = {
   feedback: { tone: 'success' | 'error'; message: string } | null
 }
 
+type CollectorReview = {
+  name: string
+  handle: string
+  rating: number
+  date: string
+  text: string
+}
+
+const reviewTemplates: CollectorReview[] = [
+  {
+    name: 'Lia Marques',
+    handle: '@liamint',
+    rating: 5,
+    date: '12 set 2026',
+    text: 'A arte tem presenca forte na colecao. O arquivo em alta resolucao veio impecavel e a procedencia ficou clara desde a compra.',
+  },
+  {
+    name: 'Caio Venn',
+    handle: '@caiovenn',
+    rating: 5,
+    date: '10 set 2026',
+    text: 'Gostei da combinacao de atributos e do historico do criador. E uma peca que funciona bem tanto no perfil quanto como item de longo prazo.',
+  },
+  {
+    name: 'Nina Costa',
+    handle: '@ninacoleta',
+    rating: 4,
+    date: '08 set 2026',
+    text: 'Visual muito limpo, metadados organizados e boa liquidez na colecao. Fiquei de olho em outras edicoes depois dessa compra.',
+  },
+  {
+    name: 'Rafa Orion',
+    handle: '@rafaorion',
+    rating: 5,
+    date: '05 set 2026',
+    text: 'A paleta e os detalhes de textura chamam atencao. A experiencia de compra foi simples e a transferencia apareceu rapido.',
+  },
+]
+
+const reviewsPerPage = 6
+
+function getCollectorReviews(nft: Nft) {
+  const seed = [...nft.id].reduce((total, char) => (total * 31 + char.charCodeAt(0)) % 9973, 17)
+  const count = 7 + (seed % 19)
+  return Array.from({ length: count }, (_, index) => {
+    const template = reviewTemplates[index % reviewTemplates.length]
+    return {
+      ...template,
+      name: index < reviewTemplates.length ? template.name : `${template.name} ${index + 1}`,
+      rating: index % 6 === 0 ? 4 : template.rating,
+      date: `${String((index % 24) + 1).padStart(2, '0')} set 2026`,
+    }
+  })
+}
+
 function PurchaseStatus({ purchase, className = '' }: { purchase: PurchaseState; className?: string }) {
   const message =
     purchase.feedback?.message ??
@@ -73,6 +128,24 @@ function RelatedCard({ nft, index }: { nft: Nft; index: number }) {
   )
 }
 
+function ReviewCard({ review }: { review: CollectorReview }) {
+  return (
+    <article className="bg-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="font-display text-base font-bold text-foreground">{review.name}</h3>
+          <p className="mt-1 text-sm font-bold text-[#8f7560]">{review.handle}</p>
+        </div>
+        <div className="text-right font-display text-sm font-bold">
+          <p className="text-primary">{'★'.repeat(review.rating)}<span className="text-[#5f4538]">{'★'.repeat(5 - review.rating)}</span></p>
+          <p className="mt-1 text-[#8f7560]">{review.date}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm font-bold leading-6 text-[#9b826d]">{review.text}</p>
+    </article>
+  )
+}
+
 function BenefitsSignup() {
   return (
     <section className="mt-24 bg-card">
@@ -105,6 +178,8 @@ export function NftDetailsPage() {
   const { nftId } = useParams({ from: '/nft/$nftId' })
   const [quantity, setQuantity] = useState(1)
   const [relatedPage, setRelatedPage] = useState(0)
+  const [detailsTab, setDetailsTab] = useState<'details' | 'reviews'>('details')
+  const [reviewPage, setReviewPage] = useState(0)
   const { addItem, getQuantityInCart, isUpdating } = useCart()
   const [purchaseFeedback, setPurchaseFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const { isAuthenticated } = useAuth()
@@ -193,10 +268,18 @@ export function NftDetailsPage() {
   )
   const related = relatedPages[relatedPage]
   const thumbnails = [nft, nft, nft, nft]
+  const collectorReviews = getCollectorReviews(nft)
+  const reviewCount = collectorReviews.length
+  const reviewTotalPages = Math.ceil(reviewCount / reviewsPerPage)
+  const activeReviewPage = Math.min(reviewPage, Math.max(0, reviewTotalPages - 1))
+  const visibleReviews = collectorReviews.slice(
+    activeReviewPage * reviewsPerPage,
+    activeReviewPage * reviewsPerPage + reviewsPerPage,
+  )
 
   return (
     <>
-      <MobileNftDetails nft={nft} quantity={quantity} setQuantity={setQuantity} buy={() => void handleBuy()} purchase={purchase} isFavorite={isFavorite} toggleFavorite={handleFavorite} canFavorite={isAuthenticated} />
+      <MobileNftDetails nft={nft} reviewCount={reviewCount} quantity={quantity} setQuantity={setQuantity} buy={() => void handleBuy()} purchase={purchase} isFavorite={isFavorite} toggleFavorite={handleFavorite} canFavorite={isAuthenticated} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
@@ -239,7 +322,7 @@ export function NftDetailsPage() {
               <p className="font-display text-2xl font-bold text-primarySoft">{formatEth(nft.priceEth)}</p>
               <div className="font-display text-sm font-bold text-[#bca38d]">
               <span className="text-primary">★★★★★</span>
-              <span className="ml-2">19 avaliacoes de colecionadores</span>
+              <span className="ml-2">{reviewCount} avaliacoes de colecionadores</span>
               </div>
             </div>
           </div>
@@ -314,30 +397,79 @@ export function NftDetailsPage() {
 
       <section className="mt-24">
         <div className="flex flex-wrap gap-9 border-b border-border font-display text-lg font-bold">
-          <button type="button" className="border-b-2 border-primary pb-3 text-primary">Detalhes do NFT</button>
-          <button type="button" className="pb-3 text-[#bca38d]">Avaliacoes de colecionadores (19)</button>
+          <button
+            type="button"
+            className={detailsTab === 'details' ? 'border-b-2 border-primary pb-3 text-primary' : 'pb-3 text-[#bca38d] hover:text-primarySoft'}
+            aria-pressed={detailsTab === 'details'}
+            onClick={() => {
+              setDetailsTab('details')
+              setReviewPage(0)
+            }}
+          >
+            Detalhes do NFT
+          </button>
+          <button
+            type="button"
+            className={detailsTab === 'reviews' ? 'border-b-2 border-primary pb-3 text-primary' : 'pb-3 text-[#bca38d] hover:text-primarySoft'}
+            aria-pressed={detailsTab === 'reviews'}
+            onClick={() => {
+              setDetailsTab('reviews')
+              setReviewPage(0)
+            }}
+          >
+            Avaliacoes de colecionadores ({reviewCount})
+          </button>
         </div>
 
-        <div className="mt-4 space-y-7 text-base font-bold leading-7 text-[#9b826d]">
-          <p>
-            {nft.title} e uma obra digital 1/50 finalizada a mao da colecao Kurio Editions. Cada atributo fica armazenado nos metadados do token e verificado na Ethereum. A obra explora identidade, movimento e luz em um mundo digital sem fronteiras.
-          </p>
-          <p>
-            A propriedade inclui a arte em alta resolucao, lancamentos exclusivos para colecionadores e um registro permanente de procedencia registrada na rede. Nova Sato recebe 5% de direitos autorais nas vendas secundarias, apoiando novos trabalhos e lancamentos da comunidade.
-          </p>
-          <div>
-            <h3 className="font-display text-foreground">Rede:</h3>
-            <p>Cunhado na {nft.network} com procedencia imutavel e metadados armazenados no IPFS.</p>
+        {detailsTab === 'details' ? (
+          <div className="mt-4 space-y-7 text-base font-bold leading-7 text-[#9b826d]">
+            <p>
+              {nft.title} e uma obra digital 1/50 finalizada a mao da colecao Kurio Editions. Cada atributo fica armazenado nos metadados do token e verificado na Ethereum. A obra explora identidade, movimento e luz em um mundo digital sem fronteiras.
+            </p>
+            <p>
+              A propriedade inclui a arte em alta resolucao, lancamentos exclusivos para colecionadores e um registro permanente de procedencia registrada na rede. Nova Sato recebe 5% de direitos autorais nas vendas secundarias, apoiando novos trabalhos e lancamentos da comunidade.
+            </p>
+            <div>
+              <h3 className="font-display text-foreground">Rede:</h3>
+              <p>Cunhado na {nft.network} com procedencia imutavel e metadados armazenados no IPFS.</p>
+            </div>
+            <div>
+              <h3 className="font-display text-foreground">Contrato:</h3>
+              <p>Direitos autorais do criador: 5% nas vendas secundarias, pagos automaticamente pelos mercados compativeis.</p>
+            </div>
+            <div>
+              <h3 className="font-display text-foreground">Direitos autorais:</h3>
+              <p>0x7A42...19E8 - Contrato inteligente ERC-721 verificado.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-display text-foreground">Contrato:</h3>
-            <p>Direitos autorais do criador: 5% nas vendas secundarias, pagos automaticamente pelos mercados compativeis.</p>
-          </div>
-          <div>
-            <h3 className="font-display text-foreground">Direitos autorais:</h3>
-            <p>0x7A42...19E8 - Contrato inteligente ERC-721 verificado.</p>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              {visibleReviews.map((review, index) => (
+                <ReviewCard key={`${activeReviewPage}-${review.handle}-${index}`} review={review} />
+              ))}
+            </div>
+            {reviewTotalPages > 1 && (
+              <div className="mt-7 flex justify-end gap-2">
+                {Array.from({ length: reviewTotalPages }, (_, pageIndex) => (
+                  <button
+                    key={pageIndex}
+                    type="button"
+                    className={
+                      pageIndex === activeReviewPage
+                        ? 'grid size-8 place-items-center rounded-sm bg-primary text-sm font-bold text-[#160b08]'
+                        : 'grid size-8 place-items-center rounded-sm border border-border text-sm font-bold text-[#9a806a] transition hover:border-primary hover:text-primarySoft'
+                    }
+                    aria-current={pageIndex === activeReviewPage ? 'page' : undefined}
+                    onClick={() => setReviewPage(pageIndex)}
+                  >
+                    {pageIndex + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <section className="mt-24">
@@ -373,6 +505,7 @@ export function NftDetailsPage() {
 
 function MobileNftDetails({
   nft,
+  reviewCount,
   quantity,
   setQuantity,
   buy,
@@ -382,6 +515,7 @@ function MobileNftDetails({
   canFavorite,
 }: {
   nft: Nft
+  reviewCount: number
   quantity: number
   setQuantity: Dispatch<SetStateAction<number>>
   buy: () => void
@@ -412,7 +546,7 @@ function MobileNftDetails({
           <h1 className="text-xl font-black tracking-[0.03em]">{nft.title}</h1>
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary px-2 py-1 text-xs font-bold">
             <Star size={13} className="fill-primary text-primary" />
-            4.8(19)
+            4.8({reviewCount})
           </span>
         </div>
         <p className="mt-4 text-sm font-medium leading-7 text-[#d1b38f]">

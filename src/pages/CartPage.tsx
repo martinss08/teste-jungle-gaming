@@ -1,12 +1,15 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { Button } from '../components/ui/Button'
 import type { CartItem, QuoteLine } from '../contracts/api'
 import { nfts } from '../data/nfts'
 import { formatEth } from '../lib/eth'
+import { cn } from '../lib/utils'
 import type { Nft } from '../types'
 import { useCart } from '../modules/cart/useCart'
+import { useAuth } from '../modules/auth/useAuth'
+import { AuthModalPage } from './LoginPage'
 
 const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
@@ -185,19 +188,43 @@ function useCanCheckout() {
 
 export function CartPage() {
   const { updateQuantity, removeItem, couponCode, isLoading, isUpdating, error } = useCart()
+  const { isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+  const checkoutScrollRef = useRef(0)
   const rows = useCartRows()
   const { coupon, setCoupon, submit: handleCouponSubmit } = useCouponForm()
   const canCheckout = useCanCheckout()
+  const [authOpen, setAuthOpen] = useState(false)
   const [recommendationPage, setRecommendationPage] = useState(0)
   const recommendationPool = nfts.length > 1 ? nfts : nfts
   const recommendationPages = Array.from({ length: 3 }, (_, pageIndex) =>
     Array.from({ length: 5 }, (_, itemIndex) => recommendationPool[(pageIndex * 5 + itemIndex + 1) % recommendationPool.length]),
   )
   const recommendations = recommendationPages[recommendationPage]
+  const restoreCheckoutScroll = () => {
+    const scrollY = checkoutScrollRef.current
+    window.requestAnimationFrame(() => window.scrollTo(0, scrollY))
+    window.setTimeout(() => window.scrollTo(0, scrollY), 50)
+    window.setTimeout(() => window.scrollTo(0, scrollY), 150)
+  }
+  const closeAuthModal = () => {
+    setAuthOpen(false)
+    restoreCheckoutScroll()
+  }
+  const handleCheckout = () => {
+    if (isAuthenticated) {
+      void navigate({ to: '/pagamento' })
+      return
+    }
+
+    checkoutScrollRef.current = window.scrollY
+    setAuthOpen(true)
+    restoreCheckoutScroll()
+  }
 
   return (
     <>
-      <MobileCartPage />
+      <MobileCartPage onCheckout={handleCheckout} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[60px] xl:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
@@ -208,17 +235,18 @@ export function CartPage() {
         <span>Carrinho</span>
       </div>
 
-      <section className="mt-3 grid gap-14 lg:grid-cols-[600px_250px] lg:gap-[60px] xl:grid-cols-[780px_330px] xl:gap-[86px]">
+      <section className="mt-3 grid gap-14 lg:grid-cols-[600px_250px] lg:gap-[60px] xl:grid-cols-[840px_330px] xl:gap-[86px]">
         <div>
-          <div className="hidden border-b border-border pb-3 font-display text-base font-bold sm:grid sm:grid-cols-[230px_95px_130px_115px_30px] xl:grid-cols-[320px_140px_150px_130px_40px]">
+          <div className="hidden border-b border-border pb-3 font-display text-base font-bold sm:grid sm:grid-cols-[230px_95px_130px_115px_30px_24px] xl:grid-cols-[320px_140px_150px_130px_40px_60px]">
             <span>NFTs</span>
             <span>Preco</span>
             <span>Edicoes</span>
             <span>Total</span>
             <span />
+            <span />
           </div>
 
-          <div className="mt-3 space-y-3">
+          <div className={cn('mt-3 space-y-3 pr-1', rows.length > 5 && 'cart-scroll max-h-[527px] overflow-y-auto')}>
             {error && <p role="alert" className="rounded-sm border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-100">{error}</p>}
             <CartChangesNotice />
             {isLoading ? (
@@ -234,7 +262,7 @@ export function CartPage() {
                 return (
                   <div
                     key={item.nftId}
-                    className="grid gap-4 bg-card p-2 font-display font-bold sm:grid-cols-[230px_95px_130px_115px_30px] sm:items-center sm:gap-0 xl:grid-cols-[320px_140px_150px_130px_40px] xl:p-3"
+                    className="grid gap-4 bg-card p-2 font-display font-bold sm:grid-cols-[230px_95px_130px_115px_30px_24px] sm:items-center sm:gap-0 xl:grid-cols-[320px_140px_150px_130px_40px_60px] xl:p-3"
                   >
                     <div className="grid grid-cols-[56px_1fr] items-center gap-3 xl:grid-cols-[70px_1fr] xl:gap-4">
                       <div className="size-14 overflow-hidden rounded-md bg-[#efe7d2] xl:size-[70px]">
@@ -280,13 +308,14 @@ export function CartPage() {
 
                     <button
                       type="button"
-                      className="text-[#b29274] transition hover:text-primarySoft disabled:opacity-40"
+                      className="justify-self-start text-[#b29274] transition hover:text-primarySoft disabled:opacity-40"
                       onClick={() => void removeItem(item.nftId)}
                       disabled={isUpdating}
                       aria-label={`Remover ${quoteLine.title}`}
                     >
                       <Trash2 size={22} />
                     </button>
+                    <span aria-hidden="true" />
                   </div>
                 )
               })
@@ -317,9 +346,7 @@ export function CartPage() {
           />
 
           {canCheckout ? (
-            <Link to="/pagamento" className="mt-5 block">
-              <Button className="w-full" size="lg">Conectar e finalizar</Button>
-            </Link>
+            <Button type="button" className="mt-5 w-full" size="lg" onClick={handleCheckout}>Conectar e finalizar</Button>
           ) : (
             <Button className="mt-5 w-full" size="lg" disabled>Conectar e finalizar</Button>
           )}
@@ -356,11 +383,22 @@ export function CartPage() {
 
       <BenefitsSignup />
       </div>
+      {authOpen && (
+        <AuthModalPage
+          mode="login"
+          redirect="/pagamento"
+          onClose={closeAuthModal}
+          onSuccess={() => {
+            setAuthOpen(false)
+            void navigate({ to: '/pagamento' })
+          }}
+        />
+      )}
     </>
   )
 }
 
-function MobileCartPage() {
+function MobileCartPage({ onCheckout }: { onCheckout: () => void }) {
   const { updateQuantity, removeItem, couponCode, isLoading, isUpdating, error } = useCart()
   const rows = useCartRows()
   const { coupon, setCoupon, submit: handleCouponSubmit } = useCouponForm()
@@ -375,7 +413,7 @@ function MobileCartPage() {
         <h1 className="text-center text-xl font-black tracking-[0.05em]">Carrinho de NFTs</h1>
       </header>
 
-      <div className="mt-5 grid gap-5">
+      <div className={cn('mt-5 grid gap-5 pr-1', rows.length > 5 && 'cart-scroll max-h-[600px] overflow-y-auto')}>
         {error && <p role="alert" className="rounded-xl border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-100">{error}</p>}
         <CartChangesNotice />
         {isLoading ? (
@@ -432,9 +470,9 @@ function MobileCartPage() {
         />
 
         {canCheckout ? (
-          <Link to="/pagamento" className="mt-8 block h-[60px] w-full rounded-[30px] bg-primary text-center text-sm font-black leading-[60px] text-[#120906]">
+          <button type="button" className="mt-8 block h-[60px] w-full rounded-[30px] bg-primary text-center text-sm font-black leading-[60px] text-[#120906]" onClick={onCheckout}>
             Conectar e finalizar
-          </Link>
+          </button>
         ) : (
           <button type="button" className="mt-8 h-[60px] w-full rounded-[30px] bg-primary text-sm font-black text-[#120906] opacity-50" disabled>
             Conectar e finalizar

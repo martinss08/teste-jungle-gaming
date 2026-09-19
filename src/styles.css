@@ -59,6 +59,25 @@ textarea:focus-visible {
   display: none;
 }
 
+.cart-scroll {
+  scrollbar-color: #d98f4d #2a160f;
+  scrollbar-width: thin;
+}
+
+.cart-scroll::-webkit-scrollbar {
+  width: 0.45rem;
+}
+
+.cart-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #2a160f;
+}
+
+.cart-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #d98f4d;
+}
+
 .price-range-input {
   position: absolute;
   inset: 0;
