@@ -74,7 +74,7 @@ test('compra completa ate recibo confirmado', async ({ page }) => {
   await expect(page).toHaveURL(/\/pagamento/)
 
   await reviewCheckout(page)
-  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+  await page.getByRole('button', { name: /Confirmar compra/i }).click()
 
   await expect(page).toHaveURL(/\/confirmacao/)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
@@ -87,7 +87,7 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await setScenario(page, { paymentResult: 'recusado', paymentDelayMs: 100 })
   await page.goto('/pagamento')
   await reviewCheckout(page)
-  await page.getByRole('button', { name: /Confirmar e pagar/i }).dblclick()
+  await page.getByRole('button', { name: /Confirmar compra/i }).dblclick()
   await expect(page.getByRole('heading', { name: /Pagamento recusado/i })).toBeVisible({ timeout: 10_000 })
   // O primeiro pedido apos o reset e GM-2049; um pedido duplicado apareceria como GM-2050.
   await expect(page).toHaveURL(/pedido=GM-2049/)
@@ -100,7 +100,7 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await setScenario(page, { timeoutNextOrder: true, paymentDelayMs: 100 })
   await page.goto('/pagamento')
   await reviewCheckout(page)
-  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+  await page.getByRole('button', { name: /Confirmar compra/i }).click()
   await expect(page).toHaveURL(/pedido=GM-2049/)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
 })
@@ -114,7 +114,7 @@ test('refresh durante o envio do pedido retoma a mesma tentativa sem duplicar', 
 
   // Sem conexao o envio fica pendente; a tentativa confirmada ja esta salva com a chave de idempotencia.
   await setScenario(page, { offline: true })
-  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+  await page.getByRole('button', { name: /Confirmar compra/i }).click()
   await expect(page.getByRole('button', { name: /Enviando pedido/i })).toBeVisible()
 
   await setScenario(page, { offline: false })

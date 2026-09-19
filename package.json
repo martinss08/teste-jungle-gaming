@@ -7,8 +7,10 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report test-results/playwright-report",
     "lighthouse": "lighthouse http://localhost:5173 --view"
   },
   "dependencies": {

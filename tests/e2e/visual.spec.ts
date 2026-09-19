@@ -6,17 +6,17 @@ async function waitForImages(page: import('@playwright/test').Page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       await page.evaluate(async () => {
+        for (const image of Array.from(document.images)) image.loading = 'eager'
         await Promise.race([
           Promise.all(
             Array.from(document.images)
-              .filter((image) => !image.loading || image.loading !== 'lazy')
               .filter((image) => !image.complete)
               .map((image) => new Promise((resolve) => {
                 image.addEventListener('load', resolve, { once: true })
                 image.addEventListener('error', resolve, { once: true })
               })),
           ),
-          new Promise((resolve) => setTimeout(resolve, 1500)),
+          new Promise((resolve) => setTimeout(resolve, 5000)),
         ])
       })
       return
@@ -43,6 +43,8 @@ test.beforeEach(async ({ page }) => {
 
 test('regressao visual da inicio', async ({ page }) => {
   await page.goto('/')
+  await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
   await waitForImages(page)
   await expect(page).toHaveScreenshot('inicio.png', screenshotOptions(page))
 })

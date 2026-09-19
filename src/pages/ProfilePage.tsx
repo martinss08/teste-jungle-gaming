@@ -13,7 +13,7 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react'
-import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, type FormEvent, type ReactNode, useRef, useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -32,6 +32,15 @@ type ProfileForm = Pick<Profile, 'name' | 'email' | 'username' | 'bio'>
 type PasswordForm = { currentPassword: string; newPassword: string; confirmPassword: string }
 type Errors<T> = Partial<Record<keyof T, string>>
 type ProfileSection = 'profile' | 'wallets' | 'collection' | 'wishlist' | 'coupons' | 'downloads' | 'support'
+
+const sectionByHash: Record<string, ProfileSection> = {
+  colecao: 'collection',
+  favoritos: 'wishlist',
+  carteiras: 'wallets',
+  cupons: 'coupons',
+  arquivos: 'downloads',
+  suporte: 'support',
+}
 
 const emptyPasswordForm: PasswordForm = { currentPassword: '', newPassword: '', confirmPassword: '' }
 const fieldClass =
@@ -410,6 +419,12 @@ function ProfileEditor({ profile }: { profile: Profile }) {
               <FormStatus tone={avatarStatus?.tone ?? 'success'} message={avatarStatus?.text ?? null} />
             </div>
           </div>
+        </div>
+        <div className="mt-7 flex flex-wrap items-center gap-4">
+          <Button type="submit" className="min-w-[132px]" disabled={!isDirty || profileMutation.isPending} aria-busy={profileMutation.isPending}>
+            {profileMutation.isPending ? 'Salvando...' : 'Salvar alteracoes'}
+          </Button>
+          <FormStatus tone={profileStatus?.tone ?? 'success'} message={profileStatus?.text ?? null} />
         </div>
       </form>
 
@@ -954,7 +969,8 @@ export function ProfilePage() {
   const { session, logout } = useAuth()
   const userId = session?.user.id
   const location = useLocation()
-  const [activeSection, setActiveSection] = useState<ProfileSection>('profile')
+  const [activeSection, setActiveSection] = useState<ProfileSection>(() => sectionByHash[location.hash] ?? 'profile')
+  const [syncedHash, setSyncedHash] = useState(location.hash)
   const profileQuery = useQuery({
     queryKey: ['profile', userId],
     queryFn: getProfile,
@@ -962,14 +978,11 @@ export function ProfilePage() {
   })
   const profile = profileQuery.data
 
-  useEffect(() => {
-    if (location.hash === 'colecao') setActiveSection('collection')
-    if (location.hash === 'favoritos') setActiveSection('wishlist')
-    if (location.hash === 'carteiras') setActiveSection('wallets')
-    if (location.hash === 'cupons') setActiveSection('coupons')
-    if (location.hash === 'arquivos') setActiveSection('downloads')
-    if (location.hash === 'suporte') setActiveSection('support')
-  }, [location.hash])
+  if (syncedHash !== location.hash) {
+    setSyncedHash(location.hash)
+    const section = sectionByHash[location.hash]
+    if (section) setActiveSection(section)
+  }
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 pb-16 pt-8 font-mono sm:px-6 lg:px-[120px]">

@@ -115,9 +115,9 @@ function PromoTile({ nft, title, description, search, reverse = false }: {
     <div className="grid min-h-[190px] overflow-hidden rounded-sm bg-card sm:grid-cols-2">
       <div className={reverse ? 'sm:order-2' : ''}>
         {nft ? (
-          <img src={nft.hero} alt={nft.title} className="h-full min-h-[170px] w-full object-cover" loading="lazy" />
+          <img src={nft.hero} alt={nft.title} className="aspect-square h-full min-h-[170px] w-full object-cover" loading="lazy" />
         ) : (
-          <Skeleton className="h-full min-h-[170px] rounded-none" />
+          <Skeleton className="aspect-square h-full min-h-[170px] rounded-none" />
         )}
       </div>
       <div className="flex flex-col items-center justify-center p-6 text-center">

@@ -42,6 +42,14 @@ export const coupons: Coupon[] = [
     status: 'usado',
     expiresAt: '2026-08-20',
   },
+  {
+    code: 'EXPIRADO',
+    title: '15% no drop de inverno',
+    description: 'Campanha encerrada.',
+    percent: 15,
+    status: 'expirado',
+    expiresAt: '2026-07-31',
+  },
 ]
 
 export const availableCoupons = coupons.filter((coupon) => coupon.status === 'disponivel')

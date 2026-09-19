@@ -1,10 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, CheckCircle2, Link2, Unlink, WalletCards, X } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, Link2, Unlink, WalletCards } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '../components/ui/Button'
-import { buttonVariants } from '../components/ui/buttonVariants'
 import { Skeleton } from '../components/ui/Skeleton'
-import { SUPPORTED_NETWORKS, type Order, type QuoteResponse } from '../contracts/api'
+import { SUPPORTED_NETWORKS, type QuoteResponse } from '../contracts/api'
 import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
 import { useCart } from '../modules/cart/useCart'
@@ -250,151 +249,6 @@ function QuoteTotals({ quote }: { quote: QuoteResponse }) {
   )
 }
 
-function ThankYouIcon() {
-  return (
-    <div className="relative mx-auto h-[78px] w-[78px] text-primarySoft" aria-hidden="true">
-      <div className="absolute left-1/2 top-0 h-4 w-5 -translate-x-1/2 rounded-t-full border-2 border-current border-b-0" />
-      <div className="absolute inset-x-2 top-3 h-[58px] rounded-sm border-2 border-current">
-        <div className="absolute inset-x-0 top-0 h-full overflow-hidden">
-          <div className="absolute left-0 top-5 h-10 w-10 origin-top-left rotate-45 border-b-2 border-r-2 border-current" />
-          <div className="absolute right-0 top-5 h-10 w-10 origin-top-right -rotate-45 border-b-2 border-l-2 border-current" />
-        </div>
-        <span className="absolute left-1/2 top-2 -translate-x-1/2 text-center font-display text-[0.68rem] font-black leading-[0.78rem]">
-          THANK<br />YOU
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function PaymentToast({ visible }: { visible: boolean }) {
-  if (!visible) return null
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="fixed right-5 top-5 z-[70] flex max-w-[320px] items-center gap-3 border border-primary bg-card px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-    >
-      <CheckCircle2 size={20} className="shrink-0 text-success" />
-      <div>
-        <p className="font-display text-sm font-bold text-foreground">Pagamento confirmado</p>
-        <p className="mt-0.5 font-mono text-xs text-[#caa677]">Seus NFTs foram adicionados a sua carteira.</p>
-      </div>
-    </div>
-  )
-}
-
-function PaymentConfirmationModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const dateLabel = new Date(order.createdAt).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-  const statusCopy = order.status === 'confirmado'
-    ? 'Seus NFTs agora estao na sua carteira'
-    : order.status === 'pendente'
-      ? 'Pagamento enviado para confirmacao'
-      : 'Pagamento recusado pela carteira'
-
-  return (
-    <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-[#120906]/80 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-confirmation-title">
-      <div className="relative w-full max-w-[640px] border-b-8 border-primary bg-card shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 grid size-8 place-items-center text-primarySoft hover:text-primary"
-          onClick={onClose}
-          aria-label="Fechar recibo"
-        >
-          <X size={18} />
-        </button>
-
-        <div className="px-8 pb-5 pt-7 text-center">
-          <ThankYouIcon />
-          <h2 id="payment-confirmation-title" className="mt-4 font-display text-lg font-bold tracking-[0.08em] text-[#d7b895]">
-            {statusCopy}
-          </h2>
-        </div>
-
-        <dl className="grid border-y border-primary/70 font-mono text-sm text-[#d7b895] sm:grid-cols-[1.2fr_0.85fr_0.85fr_0.85fr]">
-          <div className="border-b border-primary/40 px-8 py-4 sm:border-b-0 sm:border-r">
-            <dt className="font-bold text-foreground">ID da transacao</dt>
-            <dd className="mt-1 break-all">{order.transaction}</dd>
-          </div>
-          <div className="border-b border-primary/40 px-8 py-4 sm:border-b-0 sm:border-r sm:px-5">
-            <dt>Data</dt>
-            <dd className="mt-1">{dateLabel}</dd>
-          </div>
-          <div className="border-b border-primary/40 px-8 py-4 sm:border-b-0 sm:border-r sm:px-5">
-            <dt>Total</dt>
-            <dd className="mt-1">{formatEth(order.totalEth)}</dd>
-          </div>
-          <div className="px-8 py-4 sm:px-5">
-            <dt className="font-bold text-foreground">Carteira</dt>
-            <dd className="mt-1">{order.wallet.label}</dd>
-          </div>
-        </dl>
-
-        <div className="px-8 pb-8 pt-5">
-          <h3 className="font-display text-base font-bold">Detalhes da transacao</h3>
-          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_92px_112px] border-b border-border pb-2 font-display text-base font-bold">
-            <span>NFTs</span>
-            <span className="text-center">Edicoes</span>
-            <span className="text-right">Subtotal</span>
-          </div>
-          <ul className="mt-3 space-y-3">
-            {order.items.map((item) => (
-              <li key={item.nftId} className="grid grid-cols-[64px_minmax(0,1fr)_92px_112px] items-center gap-3">
-                <img src={item.imageUrl} alt={item.title} className="size-16 rounded-sm bg-[#efe7d2] object-cover" />
-                <div className="min-w-0">
-                  <p className="truncate font-display text-base font-bold">{item.title}</p>
-                  <p className="mt-1 truncate font-mono text-xs text-[#b29274]">ID do token: #{item.edition}</p>
-                </div>
-                <p className="text-center font-mono text-sm text-[#d7b895]">(x {item.quantity})</p>
-                <p className="text-right font-display text-lg font-bold text-primarySoft">{formatEth(item.subtotalEth)}</p>
-              </li>
-            ))}
-          </ul>
-
-          <dl className="ml-auto mt-5 grid max-w-[360px] gap-3 border-b border-border pb-4 font-mono text-base">
-            <div className="flex justify-between gap-4">
-              <dt>Taxa de rede</dt>
-              <dd>{formatEth(order.networkFeeEth)}</dd>
-            </div>
-            <div className="flex justify-between gap-4 font-bold">
-              <dt>Total</dt>
-              <dd className="font-display text-xl text-primarySoft">{formatEth(order.totalEth)}</dd>
-            </div>
-          </dl>
-
-          <p className="mx-auto mt-4 max-w-[500px] text-center font-mono text-sm leading-6 text-[#caa677]">
-            Transacao confirmada na {order.network}. A propriedade foi transferida para sua carteira conectada e registrada na rede.
-          </p>
-          <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            {order.status === 'confirmado' && (
-              <Link
-                to="/perfil"
-                hash="colecao"
-                onClick={onClose}
-                className={buttonVariants({ className: 'min-w-[190px] font-display text-base font-bold' })}
-              >
-                Ver minha colecao
-              </Link>
-            )}
-            <a
-              href={order.explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: order.status === 'confirmado' ? 'secondary' : 'primary', className: 'min-w-[190px] font-display text-base font-bold' })}
-            >
-              Ver no Etherscan
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function CheckoutWalletPanel({ flow }: { flow: CheckoutFlow }) {
   const providerLabel = walletProviders.find((item) => item.id === flow.connection?.provider)?.label
 
@@ -556,7 +410,6 @@ function ReviewSection({ flow }: { flow: CheckoutFlow }) {
 export function CheckoutPage() {
   const flow = useCheckoutFlow()
   const { quote, items, isLoading: isCartLoading } = useCart()
-  const [showPaymentToast, setShowPaymentToast] = useState(false)
   const isReview = flow.step === 'review'
   const summaryQuote = (isReview ? flow.reviewedQuote : null) ?? quote
   const isEmpty = !isCartLoading && items.length === 0 && !flow.hasPendingAttempt
@@ -575,17 +428,8 @@ export function CheckoutPage() {
     ? flow.isSubmitting || (!flow.hasPendingAttempt && (flow.quoteChangedSinceReview || !flow.connection))
     : flow.isRevalidating || Boolean(quote?.stale) || !summaryQuote
 
-  useEffect(() => {
-    if (flow.completedOrder?.status !== 'confirmado') return
-    setShowPaymentToast(true)
-    const timeout = window.setTimeout(() => setShowPaymentToast(false), 5000)
-    return () => window.clearTimeout(timeout)
-  }, [flow.completedOrder])
-
   return (
     <div className="mx-auto max-w-[1440px] overflow-x-hidden px-6 pb-8 pt-8 font-mono sm:px-6 md:pt-9 lg:px-[60px] xl:px-[120px]">
-      <PaymentToast visible={showPaymentToast} />
-      {flow.completedOrder && <PaymentConfirmationModal order={flow.completedOrder} onClose={flow.dismissCompletedOrder} />}
       <header className="grid grid-cols-[44px_1fr] items-center gap-4 md:hidden">
         <Link to="/carrinho" className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar ao carrinho">
           <ArrowLeft size={19} />

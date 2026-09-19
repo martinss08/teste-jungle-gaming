@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addCartItem, browserApi, expectNoHorizontalOverflow, loginByApi, nfts, patchNft, postMock, resetMock, reviewCheckout, secondUser, setScenario, user } from './helpers'
+import { addCartItem, browserApi, expectNoHorizontalOverflow, favoritesSection, loginByApi, nfts, patchNft, postMock, resetMock, reviewCheckout, secondUser, setScenario, user } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
@@ -8,19 +8,28 @@ test.beforeEach(async ({ page }) => {
 
 test('perfil edita dados, valida formulario e altera senha', async ({ page }) => {
   await page.goto('/perfil')
-  await page.getByLabel(/Nome$/i).fill('Julia Monteiro QA')
+  await page.locator('#profile-name').fill('Julia Monteiro QA')
   await page.getByRole('button', { name: /Salvar alteracoes/i }).click()
   await expect(page.getByText(/Perfil atualizado/i)).toBeVisible()
+  await page.reload()
+  await expect(page.locator('#profile-name')).toHaveValue('Julia Monteiro QA')
 
-  await page.locator('#password-newPassword').fill('123')
-  await page.getByLabel(/Confirmar nova senha/i).fill('456')
-  await page.getByRole('button', { name: /Atualizar senha/i }).click()
-  await expect(page.locator('#password-newPassword-error')).toBeVisible()
+  await page.locator('#password-new').fill('123')
+  await page.locator('#password-confirm').fill('456')
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expect(page.locator('#password-new-error')).toBeVisible()
+  await expect(page.locator('#password-confirm-error')).toBeVisible()
+
+  await page.locator('#password-current').fill(user.password)
+  await page.locator('#password-new').fill('nova-senha-qa')
+  await page.locator('#password-confirm').fill('nova-senha-qa')
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expect(page.getByText('Senha atualizada.')).toBeVisible()
 })
 
 test('avatar enviado pela interface valida o arquivo e persiste apos refresh', async ({ page }) => {
   await page.goto('/perfil')
-  const fileInput = page.locator('#avatar-file')
+  const fileInput = page.locator('#profile-avatar')
   const status = page.getByRole('status').filter({ hasText: /avatar|imagem/i })
 
   await fileInput.setInputFiles({ name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from('nao e imagem') })
@@ -60,15 +69,15 @@ test('carteira existente e editada, validada e promovida a principal', async ({ 
   await expect(secondaryForm.locator('#wallet-wallet-secondary-address-error')).toBeVisible()
 
   await secondaryForm.locator('#wallet-wallet-secondary-address').fill('0x2222222222222222222222222222222222222222')
-  await secondaryForm.getByLabel('Principal').check()
+  await secondaryForm.getByLabel('Tipo de carteira').selectOption('principal')
   await secondaryForm.getByRole('button', { name: /Salvar carteira/i }).click()
-  await expect(secondaryForm.getByRole('status')).toHaveText('Carteira salva.')
-  await expect(mainForm.getByLabel('Secundaria')).toBeChecked()
+  await expect(page.getByRole('status').filter({ hasText: 'Carteira salva.' })).toBeVisible()
+  await expect(mainForm.getByLabel('Tipo de carteira')).toHaveValue('secundaria')
 
   await page.reload()
   await expect(secondaryForm.locator('#wallet-wallet-secondary-label')).toHaveValue('Reserva QA')
-  await expect(secondaryForm.getByLabel('Principal')).toBeChecked()
-  await expect(mainForm.getByLabel('Secundaria')).toBeChecked()
+  await expect(secondaryForm.getByLabel('Tipo de carteira')).toHaveValue('principal')
+  await expect(mainForm.getByLabel('Tipo de carteira')).toHaveValue('secundaria')
 })
 
 test('favoritos fazem rollback quando a API falha e recuperam na nova tentativa', async ({ page }) => {
@@ -83,13 +92,13 @@ test('favoritos fazem rollback quando a API falha e recuperam na nova tentativa'
 
   await favorite.click()
   await expect(favorite).toHaveAttribute('aria-pressed', 'true')
-  await page.goto('/perfil')
-  await expect(page.locator('#favoritos').getByRole('link', { name: /Sage Hood/i })).toBeVisible()
+  await page.goto('/perfil#favoritos')
+  await expect(favoritesSection(page).getByRole('link', { name: /Sage Hood/i })).toBeVisible()
 })
 
 test('carteiras valida endereco e cadastra secundaria', async ({ page }) => {
   await page.goto('/carteiras')
-  await page.getByRole('button', { name: /Nova carteira/i }).click()
+  await page.getByRole('button', { name: 'Adicionar', expanded: false }).first().click()
   await page.locator('#wallet-new-label').fill('Carteira QA')
   await page.locator('#wallet-new-address').fill('0x123')
   await page.getByRole('button', { name: /Cadastrar carteira/i }).click()
@@ -97,7 +106,9 @@ test('carteiras valida endereco e cadastra secundaria', async ({ page }) => {
 
   await page.locator('#wallet-new-address').fill('0x1111111111111111111111111111111111111111')
   await page.getByRole('button', { name: /Cadastrar carteira/i }).click()
-  await expect(page.getByText(/Carteira QA/i)).toBeVisible()
+  await expect(page.locator('#new-wallet')).toHaveCount(0)
+  await expect.poll(() => page.locator('input[id^="wallet-"][id$="-label"]').evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value)))
+    .toContain('Carteira QA')
 })
 
 test('eventos em tempo real atualizam carrinho e ignoram duplicados/antigos', async ({ page }) => {
@@ -149,8 +160,8 @@ test('navegacao por teclado, foco do modal e validacoes acessiveis', async ({ pa
 test('responsividade das rotas autenticadas', async ({ page }) => {
   const routes = [
     ['/pagamento', /Perfil do colecionador|Seu carrinho esta vazio/],
-    ['/perfil', /Dados da conta/],
-    ['/carteiras', /Gerencie enderecos/],
+    ['/perfil', /Perfil do colecionador/],
+    ['/carteiras', /Carteira principal/],
   ] as const
   for (const [route, heading] of routes) {
     await page.goto(route)
@@ -164,7 +175,7 @@ test('nft.updated durante a revisao do checkout exige nova confirmacao', async (
   await addCartItem(page, nfts.emerald)
   await page.goto('/pagamento')
   await reviewCheckout(page)
-  const confirm = page.getByRole('button', { name: /Confirmar e pagar/i })
+  const confirm = page.getByRole('button', { name: /Confirmar compra/i })
   await expect(confirm).toBeEnabled()
 
   await page.evaluate(() => {
@@ -195,7 +206,7 @@ test('pedido pendente sobrevive a queda de conexao e refresh ate a confirmacao',
   await setScenario(page, { paymentDelayMs: 60_000 })
   await page.goto('/pagamento')
   await reviewCheckout(page)
-  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+  await page.getByRole('button', { name: /Confirmar compra/i }).click()
 
   const pending = page.getByRole('heading', { name: /Aguardando confirmacao/i })
   await expect(pending).toBeVisible()
@@ -222,8 +233,8 @@ test('rotas principais em tablet (768px) nao geram overflow horizontal', async (
     [`/nft/${nfts.emerald}`, /Emerald Ape/],
     ['/carrinho', /Resumo da carteira/],
     ['/pagamento', /Perfil do colecionador/],
-    ['/perfil', /Dados da conta/],
-    ['/carteiras', /Gerencie enderecos/],
+    ['/perfil', /Perfil do colecionador/],
+    ['/carteiras', /Carteira principal/],
   ] as const
   for (const [route, heading] of routes) {
     await page.goto(route)

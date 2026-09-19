@@ -1,23 +1,17 @@
 import { expect, test } from '@playwright/test'
-import { resetMock, setScenario } from './helpers'
+import { resetMock, searchCatalog, setScenario } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
 })
-
-async function search(page: import('@playwright/test').Page, term: string) {
-  const input = page.locator('input[name="q"]:visible')
-  await input.fill(term)
-  await input.press('Enter')
-}
 
 test('resposta atrasada de uma busca anterior nao sobrescreve a mais recente', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
 
   await setScenario(page, { slowNextListMs: 1500 })
-  await search(page, 'Sage')
-  await search(page, 'Onyx')
+  await searchCatalog(page, 'Sage')
+  await searchCatalog(page, 'Onyx')
   await expect(page).toHaveURL(/q=Onyx/)
   const onyx = page.locator('a[href^="/nft/"]:visible', { hasText: /Onyx Visual/ })
   await expect(onyx).toBeVisible()
@@ -33,7 +27,7 @@ test('queda de conexao simulada mostra erro e a nova tentativa recupera', async 
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
 
   await setScenario(page, { offline: true })
-  await search(page, 'Emerald')
+  await searchCatalog(page, 'Emerald')
   const errorHeading = page.getByRole('heading', { name: /Nao foi possivel carregar o catalogo/i })
   await expect(errorHeading).toBeVisible()
 

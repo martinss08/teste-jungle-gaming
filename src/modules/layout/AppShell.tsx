@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils'
 import { useAuth } from '../auth/useAuth'
 import { AuthModalPage } from '../../pages/LoginPage'
 import { useRealtime } from '../realtime/useRealtime'
-import { defaultCatalogSearch } from '../catalog/search'
+import { defaultCatalogSearch, validateCatalogSearch } from '../catalog/search'
 
 type AuthMode = 'login' | 'register'
 
@@ -71,14 +71,17 @@ export function AppShell() {
     setSearchTerm(q)
     void navigate({
       to: '/',
-      search: { ...defaultCatalogSearch, q },
+      search: pathname === '/' ? { ...validateCatalogSearch(currentSearch), q, page: 1 } : { ...defaultCatalogSearch, q },
       hash: 'catalogo',
     })
   }
 
-  useEffect(() => {
-    if (pathname === '/') setSearchTerm(currentCatalogQuery)
-  }, [currentCatalogQuery, pathname])
+  const catalogQueryKey = pathname === '/' ? currentCatalogQuery : null
+  const [syncedCatalogQuery, setSyncedCatalogQuery] = useState<string | null>()
+  if (syncedCatalogQuery !== catalogQueryKey) {
+    setSyncedCatalogQuery(catalogQueryKey)
+    if (catalogQueryKey !== null) setSearchTerm(catalogQueryKey)
+  }
 
   useEffect(() => {
     if (!searchOpen) return

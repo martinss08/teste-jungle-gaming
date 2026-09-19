@@ -175,6 +175,19 @@ export async function expectNoHorizontalOverflow(page: Page) {
   expect(sizes.bodyWidth).toBeLessThanOrEqual(sizes.viewportWidth + 1)
 }
 
+export function catalogSearchInput(page: Page) {
+  return (page.viewportSize()?.width ?? 0) < 768 ? page.locator('input[name="q"]:visible') : page.locator('#header-search')
+}
+
+export async function searchCatalog(page: Page, term: string) {
+  const input = catalogSearchInput(page)
+  if ((page.viewportSize()?.width ?? 0) >= 768 && !(await input.isVisible())) {
+    await page.getByRole('button', { name: 'Abrir busca' }).click()
+  }
+  await input.fill(term)
+  await input.press('Enter')
+}
+
 export async function expectToastOrStatus(page: Page, text: RegExp | string) {
   await expect(page.getByRole('status').filter({ hasText: text })).toBeVisible()
 }
@@ -190,8 +203,13 @@ export async function logoutByUi(page: Page) {
     await page.getByRole('button', { name: 'Conta' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Sair' }).click()
   } else {
-    await page.getByRole('banner').getByRole('button', { name: 'Sair' }).click()
+    await page.getByRole('banner').getByRole('link', { name: /^Abrir perfil de/ }).click()
+    await page.getByRole('complementary').getByRole('button', { name: 'Sair' }).click()
   }
+}
+
+export function favoritesSection(page: Page) {
+  return page.getByRole('region', { name: 'NFTs favoritos' })
 }
 
 // No /pagamento: conecta a carteira principal e avanca para a revisao do pedido.

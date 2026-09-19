@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoHorizontalOverflow, nfts, resetMock, setScenario } from './helpers'
+import { catalogSearchInput, expectNoHorizontalOverflow, nfts, resetMock, searchCatalog, setScenario } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
@@ -12,8 +12,8 @@ test('busca, filtros combinados, ordenacao, paginacao e historico do catalogo', 
   await expect(page).toHaveURL(/page=2/)
 
   if (isMobile) await page.getByRole('button', { name: /^Filtros/ }).click()
-  await page.getByRole('button', { name: /^Raro/ }).click()
-  await expect(page).toHaveURL(/rarity=raro/)
+  await page.getByRole('button', { name: /^Fotografia/ }).click()
+  await expect(page).toHaveURL(/category=Fotografia/)
   await expect(page).toHaveURL(/page=1/)
   await page.getByRole('button', { name: /^Polygon/ }).click()
   await expect(page).toHaveURL(/network=Polygon/)
@@ -22,19 +22,18 @@ test('busca, filtros combinados, ordenacao, paginacao e historico do catalogo', 
   if (isMobile) await page.getByRole('button', { name: 'Ver resultados' }).click()
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
 
-  const searchInput = page.locator('input[name="q"]:visible')
-  await searchInput.fill('Sage')
-  await searchInput.press('Enter')
+  await searchCatalog(page, 'Sage')
   await expect(page).toHaveURL(/q=Sage/)
-  await expect(page).toHaveURL(/rarity=raro/)
+  await expect(page).toHaveURL(/category=Fotografia/)
+  await expect(page).toHaveURL(/network=Polygon/)
 
   await page.goBack()
   await expect(page).not.toHaveURL(/q=Sage/)
   await expect(page).toHaveURL(/network=Polygon/)
-  await expect(page.locator('input[name="q"]:visible')).toHaveValue('')
+  await expect(catalogSearchInput(page)).toHaveValue('')
 
   await page.goForward()
-  await expect(page.locator('input[name="q"]:visible')).toHaveValue('Sage')
+  await expect(catalogSearchInput(page)).toHaveValue('Sage')
 
   await page.goto('/?q=zzzz')
   await expect(page.getByRole('heading', { name: /Nenhum NFT encontrado/i })).toBeVisible()
@@ -81,9 +80,7 @@ test('skeletons aparecem em carregamento lento e falha permite nova tentativa', 
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
   // A listagem tem 1 retry automatico: duas falhas seguidas levam ao estado de erro.
   await setScenario(page, { failNextCount: 2 })
-  const searchInput = page.locator('input[name="q"]:visible')
-  await searchInput.fill('falha')
-  await searchInput.press('Enter')
+  await searchCatalog(page, 'falha')
   const errorHeading = page.getByRole('heading', { name: /Nao foi possivel carregar o catalogo/i })
   await expect(errorHeading).toBeVisible()
   await setScenario(page, { failNextCount: 0 })

@@ -54,11 +54,13 @@ function WalletForm({
   wallet,
   defaultKind,
   onDone,
+  onSaved,
 }: {
   userId: string
   wallet?: Wallet
   defaultKind: WalletKind
   onDone?: () => void
+  onSaved: (message: string) => void
 }) {
   const queryClient = useQueryClient()
   const { session, expireSession } = useAuth()
@@ -85,7 +87,8 @@ function WalletForm({
     onSuccess: async () => {
       // Promover uma carteira a principal altera as demais: recarrega a lista inteira.
       await queryClient.invalidateQueries({ queryKey: ['wallets', userId] })
-      setStatus({ tone: 'success', text: isEdit ? 'Carteira salva.' : 'Carteira cadastrada.' })
+      setStatus(null)
+      onSaved(isEdit ? 'Carteira salva.' : 'Carteira cadastrada.')
       onDone?.()
     },
     onError: (error) => {
@@ -239,6 +242,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
   const { session } = useAuth()
   const userId = session?.user.id ?? ''
   const [isCreating, setIsCreating] = useState(false)
+  const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const walletsQuery = useQuery({
     queryKey: ['wallets', userId],
     queryFn: getWallets,
@@ -256,6 +260,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
             Carteira principal
           </h1>
           <p className="mt-2 text-sm text-[#caa677]">Estas carteiras ficam disponiveis no pagamento e para receber NFTs comprados.</p>
+          <p role="status" aria-live="polite" className="mt-2 min-h-5 text-sm font-semibold text-success">{savedMessage}</p>
         </div>
         <Button variant="ghost" className="px-0 text-primarySoft hover:bg-transparent hover:text-primary" onClick={() => setIsCreating((value) => !value)} aria-expanded={isCreating} aria-controls="new-wallet">
           {isCreating ? <X size={18} /> : <Plus size={18} />}
@@ -269,7 +274,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
           <p className="mt-1 text-sm text-foreground/55">
             {wallets.length ? 'Cadastre como principal para substituir a atual, ou como secundaria.' : 'A primeira carteira sera a principal.'}
           </p>
-          <WalletForm userId={userId} defaultKind={wallets.length ? 'secundaria' : 'principal'} onDone={() => setIsCreating(false)} />
+          <WalletForm userId={userId} defaultKind={wallets.length ? 'secundaria' : 'principal'} onDone={() => setIsCreating(false)} onSaved={setSavedMessage} />
         </section>
       )}
 
@@ -296,7 +301,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
       ) : (
         <div>
           <section className="border-b border-border pb-8">
-            <WalletForm key={primaryWallet.id} userId={userId} wallet={primaryWallet} defaultKind="principal" />
+            <WalletForm key={primaryWallet.id} userId={userId} wallet={primaryWallet} defaultKind="principal" onSaved={setSavedMessage} />
           </section>
 
           <section className="mt-8">
@@ -321,7 +326,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
             </div>
             {secondaryWallets.map((wallet) => (
               <div key={wallet.id} className="mt-6 border-t border-border pt-6">
-                <WalletForm key={`${wallet.id}-${wallet.kind}`} userId={userId} wallet={wallet} defaultKind={wallet.kind} />
+                <WalletForm key={`${wallet.id}-${wallet.kind}`} userId={userId} wallet={wallet} defaultKind={wallet.kind} onSaved={setSavedMessage} />
               </div>
             ))}
           </section>

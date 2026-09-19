@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addCartItem, loginByApi, loginByUi, logoutByUi, resetMock, secondUser, setScenario, user } from './helpers'
+import { addCartItem, favoritesSection, loginByApi, loginByUi, logoutByUi, resetMock, secondUser, setScenario, user } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
@@ -35,7 +35,7 @@ test('cadastro valida conflito e sessao expirada redireciona', async ({ page }) 
   await page.locator('input[name="email"]').fill(user.email)
   await page.locator('input[name="password"]').fill('greenmint')
   await page.locator('input[name="confirm"]').fill('greenmint')
-  await page.locator('form').getByRole('button', { name: /Criar conta/i }).click()
+  await page.locator('form').getByRole('button', { name: /Criar perfil/i }).click()
   await expect(page.getByRole('alert')).toContainText(/ja existe/i)
   await expect(page.locator('#auth-email-error')).toContainText(/ja cadastrado/i)
 
@@ -52,9 +52,9 @@ test('cadastro cria conta e entra no fluxo', async ({ page }) => {
   await page.locator('input[name="email"]').fill('nova@greenmint.dev')
   await page.locator('input[name="password"]').fill('segredo1')
   await page.locator('input[name="confirm"]').fill('segredo1')
-  await page.locator('form').getByRole('button', { name: /Criar conta/i }).click()
+  await page.locator('form').getByRole('button', { name: /Criar perfil/i }).click()
   await expect(page).toHaveURL(/\/perfil/)
-  await expect(page.getByLabel(/^Nome$/i)).toHaveValue('Nova Colecionadora')
+  await expect(page.locator('#profile-name')).toHaveValue('Nova Colecionadora')
 })
 
 test('sessao expirada durante a navegacao encerra a sessao local', async ({ page }) => {
@@ -74,19 +74,21 @@ test('sessao expirada durante a navegacao encerra a sessao local', async ({ page
 test('troca de usuario pela interface nao expoe dados da conta anterior', async ({ page }) => {
   await page.goto('/login?redirect=/perfil')
   await loginByUi(page)
-  await expect(page.getByRole('heading', { name: user.name })).toBeVisible()
-  await expect(page.locator('#favoritos').getByRole('link', { name: /Emerald Ape/i })).toBeVisible()
+  await expect(page.locator('#profile-name')).toHaveValue(user.name)
+  await page.goto('/perfil#favoritos')
+  await expect(favoritesSection(page).getByRole('link', { name: /Emerald Ape/i })).toBeVisible()
 
   await logoutByUi(page)
   await expect(page).toHaveURL(/\/login/)
   await loginByUi(page, secondUser)
 
   await expect(page).toHaveURL(/\/perfil/)
-  await expect(page.getByRole('heading', { name: secondUser.name })).toBeVisible()
+  await expect(page.locator('#profile-name')).toHaveValue(secondUser.name)
   await expect(page.locator('#profile-email')).toHaveValue(secondUser.email)
-  await expect(page.locator('#favoritos').getByRole('link', { name: /Onyx Visual/i })).toBeVisible()
-  await expect(page.locator('#favoritos').getByRole('link', { name: /Emerald Ape/i })).toHaveCount(0)
   await expect(page.getByText(user.name)).toHaveCount(0)
+  await page.goto('/perfil#favoritos')
+  await expect(favoritesSection(page).getByRole('link', { name: /Onyx Visual/i })).toBeVisible()
+  await expect(favoritesSection(page).getByRole('link', { name: /Emerald Ape/i })).toHaveCount(0)
 
   await page.goto('/carrinho')
   await expect(page.locator('h2:visible', { hasText: /Onyx Visual/i })).toBeVisible()
