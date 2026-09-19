@@ -55,7 +55,6 @@ function TextField({
   )
 }
 
-// Campo somente leitura; `unavailable` marca recursos do layout que nao existem na simulacao.
 function DisplayField({
   id,
   label,

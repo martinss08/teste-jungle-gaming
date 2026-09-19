@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report test-results/playwright-report",
-    "lighthouse": "lighthouse http://localhost:5173 --view"
+    "lighthouse": "node scripts/run-lighthouse.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

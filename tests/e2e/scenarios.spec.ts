@@ -16,7 +16,6 @@ test('resposta atrasada de uma busca anterior nao sobrescreve a mais recente', a
   const onyx = page.locator('a[href^="/nft/"]:visible', { hasText: /Onyx Visual/ })
   await expect(onyx).toBeVisible()
 
-  // Espera a resposta lenta da busca anterior chegar e confirma que ela foi descartada.
   await page.waitForTimeout(2000)
   await expect(onyx).toBeVisible()
   await expect(page.locator('a[href^="/nft/"]:visible', { hasText: /Sage/ })).toHaveCount(0)

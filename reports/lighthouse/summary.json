@@ -1,0 +1,287 @@
+{
+  "generatedAt": "2026-09-19T21:42:41.298Z",
+  "baseUrl": "http://127.0.0.1:4173",
+  "runsPerTarget": 3,
+  "targets": {
+    "detalhe-desktop": {
+      "runs": [
+        {
+          "file": "detalhe-desktop-run-1.report.json",
+          "categories": {
+            "performance": 88,
+            "accessibility": 87,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 996.1585500000001,
+            "cls": 0.20936505649725734,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:42:07.828Z"
+          }
+        },
+        {
+          "file": "detalhe-desktop-run-2.report.json",
+          "categories": {
+            "performance": 88,
+            "accessibility": 87,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 983.16745,
+            "cls": 0.20936505649725734,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:42:19.825Z"
+          }
+        },
+        {
+          "file": "detalhe-desktop-run-3.report.json",
+          "categories": {
+            "performance": 88,
+            "accessibility": 87,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 1010.3822999999998,
+            "cls": 0.20936505649725734,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:42:31.802Z"
+          }
+        }
+      ],
+      "median": {
+        "performance": 88,
+        "accessibility": 87,
+        "bestPractices": 96,
+        "seo": 92,
+        "lcpMs": 996.1585500000001,
+        "cls": 0.20936505649725734,
+        "tbtMs": 0
+      }
+    },
+    "detalhe-mobile": {
+      "runs": [
+        {
+          "file": "detalhe-mobile-run-1.report.json",
+          "categories": {
+            "performance": 81,
+            "accessibility": 89,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3650.5981500000003,
+            "cls": 0.1300121506682868,
+            "tbtMs": 91.5
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:41:32.056Z"
+          }
+        },
+        {
+          "file": "detalhe-mobile-run-2.report.json",
+          "categories": {
+            "performance": 81,
+            "accessibility": 89,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3634.8282,
+            "cls": 0.1300121506682868,
+            "tbtMs": 40
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:41:44.037Z"
+          }
+        },
+        {
+          "file": "detalhe-mobile-run-3.report.json",
+          "categories": {
+            "performance": 87,
+            "accessibility": 89,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3593.8041000000003,
+            "cls": 0,
+            "tbtMs": 26.5
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:41:55.959Z"
+          }
+        }
+      ],
+      "median": {
+        "performance": 81,
+        "accessibility": 89,
+        "bestPractices": 96,
+        "seo": 92,
+        "lcpMs": 3634.8282,
+        "cls": 0.1300121506682868,
+        "tbtMs": 40
+      }
+    },
+    "inicio-desktop": {
+      "runs": [
+        {
+          "file": "inicio-desktop-run-1.report.json",
+          "categories": {
+            "performance": 96,
+            "accessibility": 97,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 1205.3558,
+            "cls": 0.0027519989058620545,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:40:55.770Z"
+          }
+        },
+        {
+          "file": "inicio-desktop-run-2.report.json",
+          "categories": {
+            "performance": 95,
+            "accessibility": 97,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 1284.86155,
+            "cls": 0.0027519989058620545,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:41:07.872Z"
+          }
+        },
+        {
+          "file": "inicio-desktop-run-3.report.json",
+          "categories": {
+            "performance": 96,
+            "accessibility": 97,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 1230.1806000000001,
+            "cls": 0.0027519989058620545,
+            "tbtMs": 0
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:41:19.983Z"
+          }
+        }
+      ],
+      "median": {
+        "performance": 96,
+        "accessibility": 97,
+        "bestPractices": 96,
+        "seo": 92,
+        "lcpMs": 1230.1806000000001,
+        "cls": 0.0027519989058620545,
+        "tbtMs": 0
+      }
+    },
+    "inicio-mobile": {
+      "runs": [
+        {
+          "file": "inicio-mobile-run-1.report.json",
+          "categories": {
+            "performance": 85,
+            "accessibility": 96,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3608.8101500000002,
+            "cls": 0.07470190555888093,
+            "tbtMs": 46
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:40:19.963Z"
+          }
+        },
+        {
+          "file": "inicio-mobile-run-2.report.json",
+          "categories": {
+            "performance": 84,
+            "accessibility": 96,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3720.0035499999994,
+            "cls": 0.07470190555888093,
+            "tbtMs": 42
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:40:31.830Z"
+          }
+        },
+        {
+          "file": "inicio-mobile-run-3.report.json",
+          "categories": {
+            "performance": 84,
+            "accessibility": 96,
+            "bestPractices": 96,
+            "seo": 92
+          },
+          "metrics": {
+            "lcpMs": 3668.8307,
+            "cls": 0.07470190555888093,
+            "tbtMs": 57
+          },
+          "environment": {
+            "lighthouseVersion": "13.4.1",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+            "fetchTime": "2026-09-19T21:40:43.798Z"
+          }
+        }
+      ],
+      "median": {
+        "performance": 84,
+        "accessibility": 96,
+        "bestPractices": 96,
+        "seo": 92,
+        "lcpMs": 3668.8307,
+        "cls": 0.07470190555888093,
+        "tbtMs": 46
+      }
+    }
+  }
+}

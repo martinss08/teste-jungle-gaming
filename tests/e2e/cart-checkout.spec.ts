@@ -89,7 +89,6 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await reviewCheckout(page)
   await page.getByRole('button', { name: /Confirmar compra/i }).dblclick()
   await expect(page.getByRole('heading', { name: /Pagamento recusado/i })).toBeVisible({ timeout: 10_000 })
-  // O primeiro pedido apos o reset e GM-2049; um pedido duplicado apareceria como GM-2050.
   await expect(page).toHaveURL(/pedido=GM-2049/)
   await page.getByRole('link', { name: /Voltar ao carrinho/i }).click()
   await expect(page.locator('h2:visible', { hasText: /Emerald Ape/i })).toBeVisible()
@@ -112,7 +111,6 @@ test('refresh durante o envio do pedido retoma a mesma tentativa sem duplicar', 
   await page.goto('/pagamento')
   await reviewCheckout(page)
 
-  // Sem conexao o envio fica pendente; a tentativa confirmada ja esta salva com a chave de idempotencia.
   await setScenario(page, { offline: true })
   await page.getByRole('button', { name: /Confirmar compra/i }).click()
   await expect(page.getByRole('button', { name: /Enviando pedido/i })).toBeVisible()

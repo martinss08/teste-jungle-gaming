@@ -209,7 +209,6 @@ function FilterOption({ label, count, active, onClick }: { label: string; count?
   )
 }
 
-// Filtros compartilhados entre a lateral desktop e o drawer mobile; contagens e limites vem da API.
 function CatalogFilters({ search, onSearch, facets }: { search: CatalogSearch; onSearch: UpdateSearch; facets?: CatalogFacetsResponse }) {
   if (!facets) {
     return (

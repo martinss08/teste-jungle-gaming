@@ -16,7 +16,6 @@ export function LoginPage() {
   return <AuthModalPage mode="login" />
 }
 
-// Mesmas regras do servidor; a API continua sendo a validacao final.
 function validateAuthForm(register: boolean, values: Record<AuthField, string>): AuthErrors {
   const errors: AuthErrors = {}
   for (const field of Object.keys(values) as AuthField[]) {

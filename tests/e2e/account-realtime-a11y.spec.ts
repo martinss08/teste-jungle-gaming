@@ -165,7 +165,6 @@ test('responsividade das rotas autenticadas', async ({ page }) => {
   ] as const
   for (const [route, heading] of routes) {
     await page.goto(route)
-    // Espera a rota carregar para que uma navegacao pendente nao interrompa a proxima.
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
     await expectNoHorizontalOverflow(page)
   }
@@ -216,7 +215,6 @@ test('pedido pendente sobrevive a queda de conexao e refresh ate a confirmacao',
   await page.reload()
   await expect(pending).toBeVisible()
 
-  // O relogio controlado liquida o pagamento sem esperar 60 s reais.
   await page.clock.fastForward(60_000)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible()
   await expect(page).toHaveURL(/pedido=GM-2049/)

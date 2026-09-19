@@ -25,6 +25,8 @@ test-results/
 playwright-report/
 blob-report/
 lighthouse-report.*
+reports/lighthouse/*.report.html
+reports/lighthouse/*.report.json
 .nyc_output/
 
 # TypeScript and tool caches

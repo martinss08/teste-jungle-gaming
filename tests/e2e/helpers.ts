@@ -212,7 +212,6 @@ export function favoritesSection(page: Page) {
   return page.getByRole('region', { name: 'NFTs favoritos' })
 }
 
-// No /pagamento: conecta a carteira principal e avanca para a revisao do pedido.
 export async function reviewCheckout(page: Page) {
   await page.getByRole('button', { name: /Conectar carteira/i }).click()
   await expect(page.getByText(/Conectada via/i)).toBeVisible()

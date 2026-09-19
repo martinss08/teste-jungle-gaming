@@ -20,7 +20,6 @@ type AuthMode = 'login' | 'register'
 
 type CartRow = {
   item: CartItem
-  // Ausente enquanto a cotacao ainda nao refletiu a ultima alteracao do carrinho.
   quoteLine?: QuoteLine
 }
 
@@ -59,7 +58,6 @@ function AmountSkeleton({ className = 'h-4 w-24' }: { className?: string }) {
   return <Skeleton className={cn('inline-block align-middle', className)} />
 }
 
-// Resumo da cotacao oficial da API; mostra skeleton enquanto carrega e sinaliza recalculo.
 function QuoteSummaryList({ className, rowClassName, totalClassName }: { className: string; rowClassName: string; totalClassName: string }) {
   const { subtotalEth, discountEth, networkFeeEth, totalEth, isQuoteLoading, isQuoteFetching } = useCart()
   const amount = (value: string, prefix = '') => (isQuoteLoading ? <AmountSkeleton /> : `${prefix}${formatEth(value)}`)

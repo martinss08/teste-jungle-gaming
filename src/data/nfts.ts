@@ -210,7 +210,6 @@ const fixtures: NftFixture[] = [
   }),
 ]
 
-// Datas de listagem deterministicas (um dia entre cada item) para a ordenacao "recentes".
 const newestListing = Date.UTC(2026, 8, 15)
 export const nfts: Nft[] = fixtures.map((nft, index) => ({
   ...nft,

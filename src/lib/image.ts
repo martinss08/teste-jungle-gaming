@@ -3,8 +3,6 @@ const maxSourceBytes = 5 * 1024 * 1024
 
 export class ImageValidationError extends Error {}
 
-// Recorta ao centro e redimensiona para um quadrado pequeno, gerando uma data URL JPEG
-// leve o suficiente para o upload simulado (o mock persiste o estado no localStorage).
 export async function resizeImageToDataUrl(file: File, size = 160): Promise<string> {
   if (!acceptedImageTypes.includes(file.type)) throw new ImageValidationError('Envie uma imagem PNG, JPEG ou WebP.')
   if (file.size > maxSourceBytes) throw new ImageValidationError('A imagem deve ter ate 5 MB.')

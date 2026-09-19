@@ -1,5 +1,3 @@
-// Valores ETH trafegam como strings decimais. Toda aritmetica usa BigInt em
-// unidades de 1e-18 (wei) para evitar erros de ponto flutuante.
 const DECIMALS = 18
 const SCALE = 10n ** BigInt(DECIMALS)
 
@@ -16,7 +14,6 @@ export function toEthString(wei: bigint, fractionDigits = 3): string {
   const negative = wei < 0n
   const absolute = negative ? -wei : wei
   const unit = 10n ** BigInt(DECIMALS - fractionDigits)
-  // arredondamento half-up na casa pedida
   const rounded = (absolute + unit / 2n) / unit
   const divisor = 10n ** BigInt(fractionDigits)
   const whole = rounded / divisor

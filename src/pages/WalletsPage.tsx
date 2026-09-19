@@ -16,7 +16,6 @@ type WalletErrors = Partial<Record<keyof WalletRequest, string>>
 const walletInputClass =
   'min-h-10 rounded-sm border-[#4c261b] bg-transparent font-mono text-sm placeholder:text-[#b9966d] focus:border-primary'
 
-// Mesmas regras do servidor: redes EVM, endereco 0x + 40 hexadecimais.
 function validateWalletForm(form: WalletRequest): WalletErrors {
   const errors: WalletErrors = {}
   const label = form.label.trim()
@@ -100,7 +99,6 @@ function WalletForm({
   })
 
   const next: WalletRequest = { ...form, label: form.label.trim(), address: form.address.trim() }
-  // Em edicao, envia apenas o que mudou.
   const changes = wallet
     ? (Object.fromEntries(
         (Object.keys(next) as Array<keyof WalletRequest>)

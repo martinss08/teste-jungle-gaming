@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Github, Heart, Home, Instagram, Linkedin, Mail, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
+import { Github, Heart, Home, Linkedin, Mail, Search, ShoppingCart, UserRound, X } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { buttonVariants } from '../../components/ui/buttonVariants'

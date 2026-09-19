@@ -7,7 +7,6 @@ import { addFavorite, getFavorites, removeFavorite } from './api'
 
 type FavoriteChange = { nftId: string; favorite: boolean }
 
-// Favoritos do usuario autenticado com atualizacao otimista e rollback em caso de falha.
 export function useFavorites() {
   const queryClient = useQueryClient()
   const { session, isAuthenticated } = useAuth()

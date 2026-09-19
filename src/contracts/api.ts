@@ -74,7 +74,6 @@ export type NftFacet = {
   count: number
 }
 
-// Contagens sobre o catalogo inteiro (independentes dos filtros aplicados).
 export type CatalogFacetsResponse = {
   total: number
   categories: NftFacet[]
@@ -104,7 +103,6 @@ export type FavoriteResponse = {
 }
 
 export type CartItem = CartLine & {
-  // Preco unitario que o usuario viu por ultimo; usado para sinalizar alteracao de preco.
   quotedUnitPriceEth?: string
 }
 
@@ -192,10 +190,8 @@ export type CollectorDetails = {
   note?: string
 }
 
-// Recibo: snapshot imutavel gerado na criacao do pedido; nao muda se o catalogo mudar.
 export type Order = {
   id: string
-  // Incrementada a cada mudanca de status; usada para descartar eventos/respostas antigos.
   version: number
   status: OrderStatus
   transaction: string
@@ -236,7 +232,6 @@ export type CollectionResponse = {
 export type CreateOrderRequest = {
   idempotencyKey: string
   quoteVersion: number
-  // Total revisado pelo usuario; o servidor recusa (QUOTE_CHANGED) se a cotacao atual divergir.
   expectedTotalEth: string
   walletId: string
   network: string
@@ -255,7 +250,6 @@ export type Profile = {
 
 export type UpdateProfileRequest = Partial<Pick<Profile, 'name' | 'email' | 'username' | 'bio'>>
 
-// Upload simulado: a imagem ja redimensionada no cliente trafega como data URL.
 export type UpdateAvatarRequest = {
   dataUrl: string
 }
@@ -271,8 +265,6 @@ export type WalletListResponse = {
   items: Wallet[]
 }
 
-// Tempo real (Socket.IO). Todo evento tem identidade estavel (`id`, para descartar duplicatas),
-// o recurso afetado e a versao do recurso (para descartar eventos antigos).
 export type RealtimeResource = { type: 'nft' | 'order'; id: string }
 
 export type RealtimeEvent<TType extends string, TData> = {
@@ -281,7 +273,6 @@ export type RealtimeEvent<TType extends string, TData> = {
   resource: RealtimeResource
   version: number
   occurredAt: string
-  // Usuario destinatario; ausente em eventos publicos (ex.: catalogo).
   audience?: string
   data: TData
 }
@@ -307,13 +298,10 @@ export type MockScenario = {
   failNextCount?: number
   forceSessionExpired: boolean
   paymentResult: 'confirmado' | 'recusado' | 'pendente'
-  // Tempo ate o pagamento pendente ser liquidado com `paymentResult`.
   paymentDelayMs: number
   walletConnection: 'aprovar' | 'recusar'
   quoteChanged: boolean
   timeoutNextOrder: boolean
-  // Sem conexao: REST responde com erro de rede e o Socket.IO recusa conexoes.
   offline: boolean
-  // Atrasa apenas a proxima listagem de NFTs, fazendo-a responder depois da seguinte (fora de ordem).
   slowNextListMs: number
 }

@@ -31,7 +31,6 @@ const reviewTemplates: Array<Omit<NftReview, 'id'>> = [
   },
 ]
 
-// Avaliacoes simuladas, deterministicas por NFT (quantidade e notas derivadas do id).
 export function buildNftReviews(nftId: string): NftReview[] {
   const seed = [...nftId].reduce((total, char) => (total * 31 + char.charCodeAt(0)) % 9973, 17)
   const count = 7 + (seed % 19)

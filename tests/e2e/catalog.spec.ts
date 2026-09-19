@@ -50,7 +50,6 @@ test('acesso direto ao detalhe e NFT inexistente', async ({ page }) => {
 test('falha de rede no detalhe permite nova tentativa', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator(`a[href="/nft/${nfts.emerald}"]:visible`).first()).toBeVisible()
-  // Carrinho e cotacao ja estao em cache: a proxima requisicao REST e a do detalhe.
   await setScenario(page, { failNextCount: 1 })
   await page.locator(`a[href="/nft/${nfts.emerald}"]:visible`).first().click()
   await expect(page.getByRole('heading', { name: /Nao foi possivel carregar este NFT/i })).toBeVisible()
@@ -78,7 +77,6 @@ test('skeletons aparecem em carregamento lento e falha permite nova tentativa', 
   await setScenario(page, { latencyMs: 0 })
   await page.goto('/')
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
-  // A listagem tem 1 retry automatico: duas falhas seguidas levam ao estado de erro.
   await setScenario(page, { failNextCount: 2 })
   await searchCatalog(page, 'falha')
   const errorHeading = page.getByRole('heading', { name: /Nao foi possivel carregar o catalogo/i })

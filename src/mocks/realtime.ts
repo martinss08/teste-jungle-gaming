@@ -2,12 +2,6 @@ import { type WebSocketHandlerConnection, ws } from 'msw'
 import type { NftUpdatedEvent, OrderUpdatedEvent } from '../contracts/api'
 import { getState, onMockChange, resolveSessionToken, resumePendingSettlements } from './state'
 
-// Servidor Socket.IO simulado sobre a interceptacao de WebSocket do MSW.
-// Implementa o minimo do protocolo usado pelo socket.io-client v4 com transporte `websocket`:
-//   Engine.IO v4: "0{handshake}" (open), "2" ping / "3" pong, "1" close
-//   Socket.IO v5: "40{auth}" connect, "41" disconnect, "42[evento, payload]" evento
-// Nao ha polling HTTP, binario, acks nem namespaces alem de "/".
-
 type RealtimeEvent = NftUpdatedEvent | OrderUpdatedEvent
 
 type Connection = {
@@ -21,8 +15,6 @@ const pingTimeout = 20_000
 const connections = new Set<Connection>()
 const history: RealtimeEvent[] = []
 
-// Caminho proprio (`/realtime`, configurado no cliente): o MSW remove o prefixo `/socket.io/` antes
-// de comparar a URL, o que a tornaria igual a do WebSocket de HMR do Vite (`ws://host/`).
 const realtime = ws.link('*/realtime')
 
 function send(connection: Connection, event: RealtimeEvent) {
@@ -34,7 +26,6 @@ function publish(event: RealtimeEvent) {
   if (history.length > 50) history.shift()
   for (const connection of connections) {
     if (!connection.joined) continue
-    // Eventos privados (pedido) so vao para conexoes autenticadas do dono.
     if (event.audience && connection.userId !== event.audience) continue
     send(connection, event)
   }
@@ -72,7 +63,6 @@ onMockChange((change) => {
 resumePendingSettlements()
 
 export const realtimeHandler = realtime.addEventListener('connection', ({ client }) => {
-  // Sem conexao simulada: recusa o socket; o socket.io-client segue tentando reconectar.
   if (getState().scenario.offline) {
     client.close()
     return
@@ -87,7 +77,6 @@ export const realtimeHandler = realtime.addEventListener('connection', ({ client
     const packet = String(event.data)
     if (packet === '3') return
     if (packet.startsWith('40')) {
-      // A sessao e resolvida pelo token enviado em `auth`; sem token a conexao e publica.
       const auth = packet.length > 2 ? (JSON.parse(packet.slice(2)) as { token?: string }) : {}
       connection.userId = resolveSessionToken(auth.token)?.user.id ?? null
       connection.joined = true
@@ -105,9 +94,6 @@ export const realtimeHandler = realtime.addEventListener('connection', ({ client
   })
 })
 
-// --- Controles de cenario (usados via /api/mock/realtime/*) ---
-
-// Reenvia o ultimo evento com o mesmo id: o cliente deve descartar como duplicata.
 export function replayLastEvent() {
   const last = history.at(-1)
   if (!last) return null
@@ -117,7 +103,6 @@ export function replayLastEvent() {
   return last
 }
 
-// Reenvia um evento anterior do mesmo recurso com novo id: o cliente deve descartar por versao.
 export function replayStaleEvent() {
   const last = history.at(-1)
   if (!last) return null
@@ -132,7 +117,6 @@ export function replayStaleEvent() {
   return stale
 }
 
-// Derruba as conexoes (interrupcao de rede); o socket.io-client reconecta sozinho.
 export function dropConnections() {
   const count = connections.size
   for (const connection of [...connections]) connection.client.close()
