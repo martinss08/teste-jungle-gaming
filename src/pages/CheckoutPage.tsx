@@ -11,7 +11,7 @@ import { type CheckoutFlow, type CollectorForm, useCheckoutFlow, walletProviders
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 
 const inputClass =
-  'h-10 w-full rounded-sm border border-border bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-[#a98461] focus:border-primary aria-[invalid=true]:border-red-400'
+  'h-10 w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-[#a98461] focus:border-primary aria-[invalid=true]:border-red-400'
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null
@@ -34,7 +34,7 @@ function TextField({
   const id = `checkout-${field}`
   const error = flow.errors[field]
   return (
-    <div className="font-display text-base">
+    <div className="min-w-0 font-display text-base">
       <label htmlFor={id}>
         {label}
         <span className="text-primary"> *</span>
@@ -88,7 +88,7 @@ function CollectorSection({ flow }: { flow: CheckoutFlow }) {
           maxLength={280}
           aria-invalid={Boolean(noteError)}
           aria-describedby={noteError ? 'checkout-note-error' : undefined}
-          className="mt-2 h-[120px] w-full rounded-sm border border-border bg-transparent p-3 text-sm text-foreground outline-none focus:border-primary"
+          className="mt-2 h-[120px] w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent p-3 text-sm text-foreground outline-none focus:border-primary"
         />
         <FieldError id="checkout-note-error" message={noteError} />
       </div>
@@ -101,7 +101,7 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
 
   return (
     <section aria-labelledby="wallet-title" className="mt-8">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="wallet-title" className="font-display text-xl font-bold">Carteira e rede</h2>
         <Link to="/carteiras" className="font-display text-sm font-bold text-primarySoft hover:text-primary">
           Gerenciar carteiras
@@ -121,7 +121,7 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
               <label
                 key={wallet.id}
                 className={cn(
-                  'flex cursor-pointer items-center gap-4 rounded-xl bg-card px-4 py-3',
+                  'flex min-w-0 cursor-pointer items-center gap-4 rounded-xl bg-card px-4 py-3',
                   checked ? 'ring-1 ring-primary' : '',
                   wallet.status !== 'conectada' ? 'opacity-70' : '',
                 )}
@@ -135,7 +135,9 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block font-display font-bold">{wallet.label}</span>
-                  <span className="block truncate text-sm text-[#caa677]">{wallet.address} · Rede {wallet.network}</span>
+                  <span className="block truncate text-sm text-[#caa677]" title={`${wallet.address} · Rede ${wallet.network}`}>
+                    {wallet.address} · Rede {wallet.network}
+                  </span>
                 </span>
                 {wallet.status !== 'conectada' && (
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-[#caa677]">Pendente</span>
@@ -148,7 +150,7 @@ function WalletSection({ flow }: { flow: CheckoutFlow }) {
       )}
 
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <div className="font-display text-base">
+        <div className="min-w-0 font-display text-base">
           <label htmlFor="checkout-network">
             Rede<span className="text-primary"> *</span>
           </label>
@@ -220,15 +222,15 @@ function QuoteLines({ quote }: { quote: QuoteResponse }) {
   return (
     <ul className="mt-3 space-y-3">
       {quote.lines.map((line) => (
-        <li key={line.nftId} className="grid grid-cols-[64px_1fr_auto] items-center gap-3 bg-card p-2">
-          <img src={line.imageUrl} alt={line.title} className="size-16 rounded-md bg-[#efe7d2] object-cover" />
+        <li key={line.nftId} className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-3 bg-card p-2 sm:grid-cols-[64px_minmax(0,1fr)_auto]">
+          <img src={line.imageUrl} alt={line.title} className="size-14 rounded-md bg-[#efe7d2] object-cover sm:size-16" />
           <div className="min-w-0 font-display font-bold">
             <p className="truncate text-base">
               {line.title} <span className="font-normal text-[#b29274]">(x {line.quantity})</span>
             </p>
             <p className="mt-1 text-sm text-[#b29274]">Edicao: {line.edition}</p>
           </div>
-          <p className="font-display text-base font-bold text-primarySoft">{formatEth(line.subtotalEth)}</p>
+          <p className="col-span-2 text-right font-display text-base font-bold text-primarySoft sm:col-span-1">{formatEth(line.subtotalEth)}</p>
         </li>
       ))}
     </ul>
@@ -238,22 +240,22 @@ function QuoteLines({ quote }: { quote: QuoteResponse }) {
 function QuoteTotals({ quote }: { quote: QuoteResponse }) {
   return (
     <dl className="mt-4 grid gap-3 border-b border-border pb-4 font-display text-base">
-      <div className="flex justify-between">
+      <div className="flex min-w-0 justify-between gap-3">
         <dt>Subtotal</dt>
         <dd>{formatEth(quote.subtotalEth)}</dd>
       </div>
-      <div className="flex justify-between">
+      <div className="flex min-w-0 justify-between gap-3">
         <dt>Desconto{quote.couponCode ? ` (${quote.couponCode})` : ''}</dt>
         <dd>(-) {formatEth(quote.discountEth)}</dd>
       </div>
       <div>
-        <div className="flex justify-between">
+        <div className="flex min-w-0 justify-between gap-3">
           <dt>Taxa de rede</dt>
           <dd>{formatEth(quote.networkFeeEth)}</dd>
         </div>
         <p className="text-right text-xs text-primarySoft">Taxa estimada</p>
       </div>
-      <div className="flex justify-between pt-2 text-lg font-bold">
+      <div className="flex min-w-0 justify-between gap-3 pt-2 text-lg font-bold">
         <dt>Total</dt>
         <dd className="text-primarySoft">{formatEth(quote.totalEth)}</dd>
       </div>
@@ -354,7 +356,7 @@ export function CheckoutPage() {
     : flow.isRevalidating || Boolean(quote?.stale) || !summaryQuote
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 pb-14 pt-8 font-mono sm:px-6 md:pt-9 md:font-sans lg:px-[120px]">
+    <div className="mx-auto max-w-[1440px] overflow-x-hidden px-6 pb-14 pt-8 font-mono sm:px-6 md:pt-9 md:font-sans lg:px-[120px]">
       <header className="grid grid-cols-[44px_1fr] items-center gap-4 md:hidden">
         <Link to="/carrinho" className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar ao carrinho">
           <ArrowLeft size={19} />
@@ -382,8 +384,8 @@ export function CheckoutPage() {
           <Link to="/" search={homeSearch} className="mt-4 inline-block font-bold text-primarySoft underline">Explorar o catalogo</Link>
         </div>
       ) : (
-        <section className="mt-8 grid gap-10 lg:grid-cols-[1fr_405px] lg:gap-16">
-          <div className="space-y-4">
+        <section className="mt-8 grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_405px] lg:gap-16">
+          <div className="min-w-0 space-y-4">
             {flow.notice && <Notice>{flow.notice}</Notice>}
             {isReview ? (
               <ReviewSection flow={flow} />
@@ -395,7 +397,7 @@ export function CheckoutPage() {
             )}
           </div>
 
-          <aside aria-labelledby="checkout-items-title" className="self-start">
+          <aside aria-labelledby="checkout-items-title" className="min-w-0 self-start">
             <h2 id="checkout-items-title" className="font-display text-xl font-bold">Seus NFTs</h2>
             <div className="mt-3 space-y-3">
               {!isReview && <StaleQuoteNotice />}

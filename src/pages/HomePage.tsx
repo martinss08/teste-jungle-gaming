@@ -5,7 +5,7 @@ import type { FormEvent } from 'react'
 import { Button } from '../components/ui/Button'
 import { categories, nfts } from '../data/nfts'
 import type { Nft, Rarity } from '../types'
-import { formatEth } from '../lib/utils'
+import { formatEth } from '../lib/eth'
 import { useCart } from '../modules/cart/useCart'
 import { listNfts } from '../modules/catalog/api'
 import { useProtectedAction } from '../modules/auth/useProtectedAction'
@@ -35,6 +35,20 @@ const blogPosts = [
   ['10 artistas digitais para acompanhar', 'Conheca criadores que moldam a cultura digital.'],
   ['Raridade, atributos e procedencia', 'Entenda raridade, procedencia, direitos autorais e utilidade.'],
   ['Como proteger sua carteira', 'Proteja sua carteira, seus ativos e sua identidade.'],
+]
+
+const rarityOptions: Array<{ value: Rarity | 'todos'; label: string }> = [
+  { value: 'todos', label: 'Todas raridades' },
+  { value: 'comum', label: 'Comum' },
+  { value: 'raro', label: 'Raro' },
+  { value: 'epico', label: 'Epico' },
+  { value: 'lendario', label: 'Lendario' },
+]
+
+const sortOptions: Array<{ value: HomeSearch['sort']; label: string }> = [
+  { value: 'recentes', label: 'Recentes' },
+  { value: 'preco-menor', label: 'Menor preco' },
+  { value: 'preco-maior', label: 'Maior preco' },
 ]
 
 function repeatNfts(items: Nft[], minLength = 9) {
@@ -116,7 +130,7 @@ export function HomePage() {
 
   return (
     <>
-      <MobileHomePage items={apiItems} isLoading={isLoading} isError={isError} query={search.q} onSearch={(q) => updateSearch({ q })} />
+      <MobileHomePage items={apiItems} isLoading={isLoading} isError={isError} search={search} onSearch={updateSearch} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-8 sm:px-6 md:block lg:px-[120px]">
       <section className="grid gap-8 lg:min-h-[450px] lg:grid-cols-[600px_450px] lg:items-center lg:justify-between">
@@ -169,17 +183,20 @@ export function HomePage() {
             </div>
 
             <div className="mt-10">
-              <h2 className="font-display text-base font-bold">Faixa de preco</h2>
-              <div className="mt-5 flex items-center gap-3">
-                <span className="size-4 rounded-full bg-primary" />
-                <span className="h-1 flex-1 rounded-full bg-primary" />
-                <span className="size-4 rounded-full bg-primary" />
-                <span className="h-1 flex-1 rounded-full bg-[#76523a]" />
+              <h2 className="font-display text-base font-bold">Raridade</h2>
+              <div className="mt-5 grid gap-3 text-sm font-bold text-[#9a806a]" role="group" aria-label="Filtrar por raridade">
+                {rarityOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={option.value === search.rarity ? 'text-left text-primarySoft underline underline-offset-4' : 'text-left hover:text-primarySoft'}
+                    aria-pressed={option.value === search.rarity}
+                    onClick={() => updateSearch({ rarity: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
-              <p className="mt-4 text-sm font-bold text-[#9a806a]">Preco: 0,02 - 12,30 ETH</p>
-              <Button size="sm" className="mt-3">
-                Aplicar
-              </Button>
             </div>
 
             <div className="mt-10">
@@ -211,7 +228,19 @@ export function HomePage() {
                 <button
                   key={tab}
                   type="button"
-                  className={index === 0 ? 'border-b-2 border-primary pb-1 text-primary' : 'pb-1 text-[#a18a78] hover:text-primarySoft'}
+                  className={
+                    (index === 0 && search.sort === 'recentes') ||
+                    (index === 1 && search.sort === 'preco-menor') ||
+                    (index === 2 && search.sort === 'preco-maior')
+                      ? 'border-b-2 border-primary pb-1 text-primary'
+                      : 'pb-1 text-[#a18a78] hover:text-primarySoft'
+                  }
+                  aria-pressed={
+                    (index === 0 && search.sort === 'recentes') ||
+                    (index === 1 && search.sort === 'preco-menor') ||
+                    (index === 2 && search.sort === 'preco-maior')
+                  }
+                  onClick={() => updateSearch({ sort: sortOptions[index]?.value ?? 'recentes' })}
                 >
                   {tab}
                 </button>
@@ -223,7 +252,7 @@ export function HomePage() {
               onClick={() => updateSearch({ sort: search.sort === 'preco-maior' ? 'recentes' : 'preco-maior' })}
             >
               <SlidersHorizontal size={16} />
-              Ordenar por: Listados recentemente
+              Ordenar por: {sortOptions.find((option) => option.value === search.sort)?.label ?? 'Recentes'}
             </button>
           </div>
           <form className="mt-5 flex max-w-md overflow-hidden rounded-sm border border-border bg-[#160b08]" onSubmit={(event) => {
@@ -350,19 +379,19 @@ function MobileHomePage({
   items,
   isLoading,
   isError,
-  query,
+  search,
   onSearch,
 }: {
   items: Nft[]
   isLoading: boolean
   isError: boolean
-  query: string
-  onSearch: (q: string) => void
+  search: HomeSearch
+  onSearch: (next: Partial<HomeSearch>) => void
 }) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    onSearch(String(form.get('q') ?? ''))
+    onSearch({ q: String(form.get('q') ?? '') })
   }
 
 
@@ -371,7 +400,7 @@ function MobileHomePage({
       <form className="flex gap-2" onSubmit={handleSubmit}>
         <label className="flex h-[46px] min-w-0 flex-1 items-center gap-3 rounded-lg bg-card px-4 text-[#caa677]">
           <Search size={20} />
-          <input name="q" defaultValue={query} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
+          <input name="q" defaultValue={search.q} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
         </label>
         <button type="submit" className="grid size-[46px] place-items-center rounded-xl bg-[#d9904b] text-[#120906]" aria-label="Buscar">
           <SlidersHorizontal size={22} />
@@ -403,13 +432,37 @@ function MobileHomePage({
         ))}
       </div>
 
-      <nav id="mobile-catalogo" className="mt-5 flex gap-4 overflow-x-auto whitespace-nowrap text-sm">
-        <button type="button" className="border-b-2 border-primary pb-1 font-black text-primarySoft">
-          Todos os NFTs
-        </button>
-        <button type="button" className="pb-1 text-foreground">Novos lancamentos</button>
-        <button type="button" className="pb-1 text-foreground">Em alta</button>
+      <nav id="mobile-catalogo" className="mt-5 flex gap-4 overflow-x-auto whitespace-nowrap text-sm" aria-label="Ordenacao do catalogo">
+        {[
+          ['recentes', 'Todos os NFTs'],
+          ['preco-menor', 'Novos lancamentos'],
+          ['preco-maior', 'Em alta'],
+        ].map(([sort, label]) => (
+          <button
+            key={sort}
+            type="button"
+            className={search.sort === sort ? 'border-b-2 border-primary pb-1 font-black text-primarySoft' : 'pb-1 text-foreground'}
+            aria-pressed={search.sort === sort}
+            onClick={() => onSearch({ sort })}
+          >
+            {label}
+          </button>
+        ))}
       </nav>
+
+      <label className="mt-4 block text-xs font-black uppercase tracking-[0.14em] text-primarySoft" htmlFor="mobile-rarity">
+        Raridade
+      </label>
+      <select
+        id="mobile-rarity"
+        value={search.rarity}
+        onChange={(event) => onSearch({ rarity: event.target.value })}
+        className="mt-2 h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary"
+      >
+        {rarityOptions.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
 
       {isError ? (
         <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">

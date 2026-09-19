@@ -6,6 +6,7 @@ import { useCart } from '../cart/useCart'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../auth/useAuth'
 import { AuthModalPage } from '../../pages/LoginPage'
+import { useRealtime } from '../realtime/useRealtime'
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -23,6 +24,8 @@ export function AppShell() {
   const [authRedirect, setAuthRedirect] = useState('/')
   const { itemCount } = useCart()
   const { session, isAuthenticated, logout } = useAuth()
+  const { status: realtimeStatus } = useRealtime()
+  const [announcement, setAnnouncement] = useState('')
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isMarket = pathname.startsWith('/nft/')
 
@@ -38,8 +41,34 @@ export function AppShell() {
     return () => window.removeEventListener('kurio:auth-required', handleAuthRequired)
   }, [pathname])
 
+  useEffect(() => {
+    if (realtimeStatus === 'connected') setAnnouncement('Atualizacoes em tempo real conectadas.')
+    if (realtimeStatus === 'reconnecting') setAnnouncement('Reconectando atualizacoes em tempo real.')
+  }, [realtimeStatus])
+
+  useEffect(() => {
+    const handleRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string; outcome?: string }>).detail
+      if (detail?.outcome !== 'applied') return
+      if (detail.type === 'nft.updated') setAnnouncement('NFT atualizado em tempo real.')
+      if (detail.type === 'order.updated') setAnnouncement('Pedido atualizado em tempo real.')
+    }
+
+    window.addEventListener('kurio:realtime', handleRealtime)
+    return () => window.removeEventListener('kurio:realtime', handleRealtime)
+  }, [])
+
   return (
     <div className="min-h-screen">
+      <a
+        href="#conteudo-principal"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:font-bold focus:text-[#160b08]"
+      >
+        Pular para o conteudo principal
+      </a>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
       <header className="hidden bg-[#110907]/94 backdrop-blur-xl md:sticky md:top-0 md:z-40 md:block">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between border-b border-border/70 px-4 sm:px-6 lg:px-[120px]">
           <Link to="/" search={homeSearch} className="font-display text-sm font-bold uppercase tracking-[0.18em] text-foreground" aria-label="Kurio inicio">
@@ -153,7 +182,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main>
+      <main id="conteudo-principal" tabIndex={-1}>
         <Outlet />
       </main>
 
