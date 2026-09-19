@@ -102,10 +102,28 @@ Endpoints de apoio:
 
 ## Testes
 
-Os testes Playwright rodam contra os mocks e resetam o estado por teste:
+Os testes Playwright rodam contra os mocks e resetam o estado por teste. Por padrao, eles executam em modo headless: o Chromium e aberto e controlado automaticamente, mas a janela nao aparece na tela.
 
 ```bash
 npm run test:e2e
+```
+
+Para ver o navegador abrindo e executando os passos:
+
+```bash
+npx playwright test --headed
+```
+
+Para acompanhar, filtrar e depurar os testes pela interface do Playwright:
+
+```bash
+npx playwright test --ui
+```
+
+Para abrir o relatorio HTML da ultima execucao:
+
+```bash
+npm run test:e2e:report
 ```
 
 A suite cobre desktop Chromium em 1440 px e mobile Chromium em 390 px. Os snapshots visuais ficam em `tests/e2e/visual.spec.ts-snapshots`.
