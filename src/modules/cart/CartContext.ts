@@ -1,17 +1,34 @@
 import { createContext } from 'react'
-import type { CartLine } from '../../types'
+import type { CartItem, QuoteResponse } from '../../contracts/api'
 
+export type CartActionResult = { ok: true } | { ok: false; error: string }
+
+// Valores monetarios sao strings decimais vindas da cotacao da API; nunca `number`.
 export type CartContextValue = {
-  items: CartLine[]
-  addItem: (nftId: string, quantity?: number) => void
-  updateQuantity: (nftId: string, quantity: number) => void
-  removeItem: (nftId: string) => void
-  clearCart: () => void
+  items: CartItem[]
+  // As acoes nunca rejeitam: retornam o resultado e tambem expoem a mensagem em `error`/`couponError`.
+  addItem: (nftId: string, quantity?: number) => Promise<CartActionResult>
+  updateQuantity: (nftId: string, quantity: number) => Promise<CartActionResult>
+  removeItem: (nftId: string) => Promise<CartActionResult>
+  clearCart: () => Promise<CartActionResult>
+  applyCoupon: (code: string) => Promise<CartActionResult>
+  removeCoupon: () => Promise<CartActionResult>
+  reviewChanges: () => Promise<CartActionResult>
+  getQuantityInCart: (nftId: string) => number
   itemCount: number
-  subtotalEth: number
-  networkFeeEth: number
-  discountEth: number
-  totalEth: number
+  subtotalEth: string
+  networkFeeEth: string
+  discountEth: string
+  totalEth: string
+  quote: QuoteResponse | null
+  couponCode?: string
+  isLoading: boolean
+  isQuoteLoading: boolean
+  isQuoteFetching: boolean
+  isUpdating: boolean
+  error: string | null
+  couponError: string | null
+  clearError: () => void
 }
 
 export const CartContext = createContext<CartContextValue | null>(null)

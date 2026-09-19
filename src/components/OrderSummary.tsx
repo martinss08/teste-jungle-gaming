@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
+import { formatEth } from '../lib/eth'
 import { useCart } from '../modules/cart/useCart'
 
 export function OrderSummary({ action = 'checkout' }: { action?: 'checkout' | 'confirm' }) {
@@ -16,20 +17,20 @@ export function OrderSummary({ action = 'checkout' }: { action?: 'checkout' | 'c
         </div>
         <div className="flex justify-between text-foreground/65">
           <dt>Subtotal</dt>
-          <dd>{subtotalEth.toFixed(2)} ETH</dd>
+          <dd>{formatEth(subtotalEth)}</dd>
         </div>
         <div className="flex justify-between text-foreground/65">
           <dt>Desconto</dt>
-          <dd>-{discountEth.toFixed(2)} ETH</dd>
+          <dd>-{formatEth(discountEth)}</dd>
         </div>
         <div className="flex justify-between text-foreground/65">
           <dt>Taxa de rede</dt>
-          <dd>{networkFeeEth.toFixed(2)} ETH</dd>
+          <dd>{formatEth(networkFeeEth)}</dd>
         </div>
         <div className="border-t border-border pt-3">
           <div className="flex justify-between text-lg font-bold">
             <dt>Total</dt>
-            <dd className="text-primarySoft">{totalEth.toFixed(2)} ETH</dd>
+            <dd className="text-primarySoft">{formatEth(totalEth)}</dd>
           </div>
         </div>
       </dl>
@@ -47,7 +48,7 @@ export function OrderSummary({ action = 'checkout' }: { action?: 'checkout' | 'c
         </Link>
       )}
       <p className="mt-3 text-xs leading-5 text-foreground/45">
-        Cotacao simulada. Na proxima fase, os totais virao da API REST mockada.
+        Valores da cotacao oficial da API; a taxa de rede e estimada.
       </p>
     </Card>
   )

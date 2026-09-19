@@ -66,8 +66,13 @@ export type FavoriteResponse = {
   nftIds: string[]
 }
 
+export type CartItem = CartLine & {
+  // Preco unitario que o usuario viu por ultimo; usado para sinalizar alteracao de preco.
+  quotedUnitPriceEth?: string
+}
+
 export type CartResponse = {
-  items: CartLine[]
+  items: CartItem[]
   couponCode?: string
   updatedAt: string
 }
@@ -85,12 +90,19 @@ export type ApplyCouponRequest = {
   code: string
 }
 
+export type QuoteLineIssue = 'preco-alterado' | 'disponibilidade-insuficiente' | 'esgotado'
+
 export type QuoteLine = {
   nftId: string
+  title: string
+  edition: string
+  imageUrl: string
   quantity: number
   unitPriceEth: string
+  previousUnitPriceEth?: string
   subtotalEth: string
   available: number
+  issues: QuoteLineIssue[]
 }
 
 export type QuoteResponse = {
@@ -160,6 +172,11 @@ export type ChangePasswordRequest = {
 
 export type WalletRequest = Omit<Wallet, 'id' | 'status'> & {
   kind: 'principal' | 'secundaria'
+}
+
+export type MockNftChange = {
+  priceEth?: string
+  available?: number
 }
 
 export type MockScenario = {

@@ -16,6 +16,26 @@ import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 
+type PurchaseState = {
+  remaining: number
+  maxQuantity: number
+  isAdding: boolean
+  feedback: { tone: 'success' | 'error'; message: string } | null
+}
+
+function PurchaseStatus({ purchase, className = '' }: { purchase: PurchaseState; className?: string }) {
+  const message =
+    purchase.feedback?.message ??
+    (purchase.remaining < 1 ? 'Todas as edicoes disponiveis ja estao no seu carrinho ou esgotaram.' : null)
+  const isError = purchase.feedback ? purchase.feedback.tone === 'error' : purchase.remaining < 1
+
+  return (
+    <p role="status" aria-live="polite" className={`min-h-5 text-sm font-bold ${isError ? 'text-red-200' : 'text-success'} ${className}`}>
+      {message}
+    </p>
+  )
+}
+
 function EditionPill({ children, active = false }: { children: string; active?: boolean }) {
   return (
     <span
@@ -84,7 +104,8 @@ export function NftDetailsPage() {
   const { nftId } = useParams({ from: '/nft/$nftId' })
   const [quantity, setQuantity] = useState(1)
   const [relatedPage, setRelatedPage] = useState(0)
-  const { addItem } = useCart()
+  const { addItem, getQuantityInCart, isUpdating } = useCart()
+  const [purchaseFeedback, setPurchaseFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const { isAuthenticated } = useAuth()
   const runProtected = useProtectedAction()
   const queryClient = useQueryClient()
@@ -120,7 +141,21 @@ export function NftDetailsPage() {
       void queryClient.invalidateQueries({ queryKey: ['favorites'] })
     },
   })
-  const handleBuy = () => runProtected(() => addItem(nftId, quantity))
+  // Disponibilidade restante considera o que ja esta no carrinho; o servidor valida de novo.
+  const inCart = getQuantityInCart(nftId)
+  const remaining = Math.max(0, (nft?.available ?? 0) - inCart)
+  const maxQuantity = Math.max(1, remaining)
+  const handleBuy = async () => {
+    setPurchaseFeedback(null)
+    const result = await addItem(nftId, Math.min(quantity, maxQuantity))
+    if (result.ok) {
+      setQuantity(1)
+      setPurchaseFeedback({ tone: 'success', message: 'Adicionado ao carrinho.' })
+    } else {
+      setPurchaseFeedback({ tone: 'error', message: result.error })
+    }
+  }
+  const purchase = { remaining, maxQuantity, isAdding: isUpdating, feedback: purchaseFeedback }
   const handleFavorite = () => runProtected(() => favoriteMutation.mutate())
 
   if (nftQuery.isLoading) {
@@ -160,7 +195,7 @@ export function NftDetailsPage() {
 
   return (
     <>
-      <MobileNftDetails nft={nft} quantity={quantity} setQuantity={setQuantity} buy={handleBuy} isFavorite={isFavorite} toggleFavorite={handleFavorite} canFavorite={isAuthenticated} />
+      <MobileNftDetails nft={nft} quantity={quantity} setQuantity={setQuantity} buy={() => void handleBuy()} purchase={purchase} isFavorite={isFavorite} toggleFavorite={handleFavorite} canFavorite={isAuthenticated} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
@@ -200,7 +235,7 @@ export function NftDetailsPage() {
               {nft.title}
             </h1>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="font-display text-2xl font-bold text-primarySoft">{formatEth(nft.id === 'emerald-ape-042' ? '1.19' : nft.priceEth)}</p>
+              <p className="font-display text-2xl font-bold text-primarySoft">{formatEth(nft.priceEth)}</p>
               <div className="font-display text-sm font-bold text-[#bca38d]">
               <span className="text-primary">★★★★★</span>
               <span className="ml-2">19 avaliacoes de colecionadores</span>
@@ -236,7 +271,7 @@ export function NftDetailsPage() {
                 <button
                   type="button"
                   className="grid size-12 place-items-center rounded-full bg-primary text-[#160b08]"
-                  onClick={() => setQuantity((value) => Math.min(nft.available, value + 1))}
+                  onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}
                   aria-label="Aumentar quantidade"
                 >
                   <Plus size={22} />
@@ -244,7 +279,7 @@ export function NftDetailsPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button className="min-w-[150px]" onClick={handleBuy} disabled={!nft.available}>
+                <Button className="min-w-[150px]" onClick={() => void handleBuy()} disabled={remaining < 1 || isUpdating}>
                   Comprar
                 </Button>
                 <Button
@@ -258,6 +293,7 @@ export function NftDetailsPage() {
                 </Button>
               </div>
             </div>
+            <PurchaseStatus purchase={purchase} className="mt-3" />
 
             <dl className="mt-5 grid gap-3 font-display text-base font-bold text-[#9b826d]">
               <div>ID do token: #0042</div>
@@ -339,6 +375,7 @@ function MobileNftDetails({
   quantity,
   setQuantity,
   buy,
+  purchase,
   isFavorite,
   toggleFavorite,
   canFavorite,
@@ -347,6 +384,7 @@ function MobileNftDetails({
   quantity: number
   setQuantity: Dispatch<SetStateAction<number>>
   buy: () => void
+  purchase: PurchaseState
   isFavorite: boolean
   toggleFavorite: () => void
   canFavorite: boolean
@@ -402,7 +440,7 @@ function MobileNftDetails({
               <Minus size={15} />
             </button>
             <span className="text-base font-black">{quantity}</span>
-            <button type="button" className="grid size-7 place-items-center rounded-full bg-primary text-[#120906]" onClick={() => setQuantity((value) => Math.min(nft.available, value + 1))} aria-label="Aumentar quantidade">
+            <button type="button" className="grid size-7 place-items-center rounded-full bg-primary text-[#120906]" onClick={() => setQuantity((value) => Math.min(purchase.maxQuantity, value + 1))} aria-label="Aumentar quantidade">
               <Plus size={15} />
             </button>
           </div>
@@ -410,13 +448,14 @@ function MobileNftDetails({
         </div>
 
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="h-[58px] flex-1 rounded-[28px] bg-primary text-sm font-black text-[#120906]" onClick={buy}>
+          <button type="button" className="h-[58px] flex-1 rounded-[28px] bg-primary text-sm font-black text-[#120906]" onClick={buy} disabled={purchase.remaining < 1 || purchase.isAdding}>
             Comprar NFT
           </button>
-          <button type="button" className="grid size-[58px] place-items-center rounded-full border border-border bg-[#2e1a12] text-[#d1b38f]" onClick={buy} aria-label="Adicionar ao carrinho">
+          <button type="button" className="grid size-[58px] place-items-center rounded-full border border-border bg-[#2e1a12] text-[#d1b38f]" onClick={buy} disabled={purchase.remaining < 1 || purchase.isAdding} aria-label="Adicionar ao carrinho">
             <ShoppingCart size={21} className="fill-current" />
           </button>
         </div>
+        <PurchaseStatus purchase={purchase} className="mt-3" />
       </section>
     </div>
   )

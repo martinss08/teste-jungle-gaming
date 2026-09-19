@@ -6,28 +6,34 @@ import type {
   ChangePasswordRequest,
   CreateOrderRequest,
   LoginRequest,
+  MockNftChange,
   RegisterRequest,
   UpdateCartItemRequest,
   UpdateProfileRequest,
   WalletRequest,
 } from '../contracts/api'
-import { nfts } from '../data/nfts'
+import { compareEth } from '../lib/eth'
 import type { CartLine, Rarity, Wallet } from '../types'
 import {
+  addToCart,
   createOrderFromQuote,
   createQuote,
   createSession,
   ensureCart,
   getCartOwner,
+  getNft,
   getState,
   hashPassword,
+  listNfts,
   mergeGuestCartIntoUser,
   persistState,
   removeSession,
   resetState,
   resolveSession,
+  reviewCart,
   setScenario,
   touchCart,
+  updateNft,
 } from './state'
 
 export const handlers = [
@@ -91,7 +97,7 @@ export const handlers = [
       updatedAt: new Date().toISOString(),
     }
 
-    mergeGuestCartIntoUser(user.id)
+    mergeGuestCartIntoUser(user.id, request.headers.get('X-Guest-Id'))
     const session = createSession(user.id)
     persistState()
     return HttpResponse.json(session, { status: 201 })
@@ -106,7 +112,7 @@ export const handlers = [
       return apiError('UNAUTHORIZED', 'E-mail ou senha invalidos.', 401)
     }
 
-    mergeGuestCartIntoUser(user.id)
+    mergeGuestCartIntoUser(user.id, request.headers.get('X-Guest-Id'))
     return HttpResponse.json(createSession(user.id))
   }),
 
@@ -134,7 +140,7 @@ export const handlers = [
     const page = positiveNumber(url.searchParams.get('page'), 1)
     const pageSize = positiveNumber(url.searchParams.get('pageSize'), 6)
 
-    let items = nfts.filter((nft) => {
+    let items = listNfts().filter((nft) => {
       const matchesQuery =
         !q ||
         nft.title.toLowerCase().includes(q) ||
@@ -147,8 +153,8 @@ export const handlers = [
     })
 
     items = [...items].sort((a, b) => {
-      if (sort === 'preco-menor') return Number(a.priceEth) - Number(b.priceEth)
-      if (sort === 'preco-maior') return Number(b.priceEth) - Number(a.priceEth)
+      if (sort === 'preco-menor') return compareEth(a.priceEth, b.priceEth)
+      if (sort === 'preco-maior') return compareEth(b.priceEth, a.priceEth)
       return a.title.localeCompare(b.title)
     })
 
@@ -166,7 +172,7 @@ export const handlers = [
   }),
 
   http.get('/api/nfts/:nftId', ({ params }) => {
-    const nft = nfts.find((item) => item.id === params.nftId)
+    const nft = getNft(String(params.nftId))
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
     return HttpResponse.json(nft)
   }),
@@ -182,7 +188,7 @@ export const handlers = [
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Favoritos exigem autenticacao.', 401)
     const nftId = String(params.nftId)
-    if (!nfts.some((item) => item.id === nftId)) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
+    if (!getNft(nftId)) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
 
     const state = getState()
     state.favorites[session.user.id] ??= []
@@ -210,34 +216,31 @@ export const handlers = [
   http.post('/api/cart/items', async ({ request }) => {
     const body = await request.json() as AddCartItemRequest
     const owner = getCartOwner(request)
-    const nft = nfts.find((item) => item.id === body.nftId)
+    const nft = getNft(body.nftId)
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
     if (!Number.isInteger(body.quantity) || body.quantity < 1) {
       return apiError('VALIDATION_ERROR', 'Quantidade invalida.', 422, { quantity: 'Informe uma quantidade inteira positiva.' })
     }
+    if (nft.available < 1) return apiError('CONFLICT', 'Edicao esgotada.', 409)
 
-    const cart = ensureCart(owner)
-    const current = cart.items.find((line) => line.nftId === body.nftId)
-    const nextQuantity = (current?.quantity ?? 0) + body.quantity
-    if (nextQuantity > nft.available) {
-      return apiError('CONFLICT', 'Quantidade maior que a disponibilidade.', 409)
+    const current = ensureCart(owner).items.find((line) => line.nftId === body.nftId)
+    const inCart = current?.quantity ?? 0
+    if (inCart + body.quantity > nft.available) {
+      return apiError('CONFLICT', availabilityMessage(nft.available, inCart), 409)
     }
-    if (current) current.quantity = nextQuantity
-    else cart.items.push({ nftId: body.nftId, quantity: body.quantity })
-    touchCart(owner)
-    return HttpResponse.json(cart, { status: 201 })
+    return HttpResponse.json(addToCart(owner, nft, body.quantity), { status: 201 })
   }),
 
   http.patch('/api/cart/items/:nftId', async ({ request, params }) => {
     const body = await request.json() as UpdateCartItemRequest
     const owner = getCartOwner(request)
     const nftId = String(params.nftId)
-    const nft = nfts.find((item) => item.id === nftId)
+    const nft = getNft(nftId)
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
     if (!Number.isInteger(body.quantity) || body.quantity < 1) {
       return apiError('VALIDATION_ERROR', 'Quantidade invalida.', 422, { quantity: 'Informe uma quantidade inteira positiva.' })
     }
-    if (body.quantity > nft.available) return apiError('CONFLICT', 'Edicao sem disponibilidade suficiente.', 409)
+    if (body.quantity > nft.available) return apiError('CONFLICT', availabilityMessage(nft.available, 0), 409)
 
     const cart = ensureCart(owner)
     const current = cart.items.find((line) => line.nftId === nftId)
@@ -274,6 +277,10 @@ export const handlers = [
     delete cart.couponCode
     touchCart(owner)
     return HttpResponse.json(cart)
+  }),
+
+  http.post('/api/cart/review', ({ request }) => {
+    return HttpResponse.json(reviewCart(getCartOwner(request)))
   }),
 
   http.get('/api/quote', ({ request }) => {
@@ -418,7 +425,21 @@ export const handlers = [
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(setScenario(body))
   }),
+
+  // Simula alteracao de preco/disponibilidade de um NFT (base para nft.updated na Fase 7).
+  http.patch('/api/mock/nfts/:nftId', async ({ request, params }) => {
+    const body = await request.json() as MockNftChange
+    const nft = updateNft(String(params.nftId), body)
+    if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
+    return HttpResponse.json(nft)
+  }),
 ]
+
+function availabilityMessage(available: number, inCart: number) {
+  if (available < 1) return 'Edicao esgotada.'
+  if (inCart >= available) return `Voce ja tem todas as ${available} edicoes disponiveis no carrinho.`
+  return `Apenas ${available} edicoes disponiveis${inCart ? ` (${inCart} ja no carrinho)` : ''}.`
+}
 
 function apiError(code: ApiErrorCode, message: string, status: number, fields?: Record<string, string>) {
   return HttpResponse.json({ error: { code, message, fields } }, { status })

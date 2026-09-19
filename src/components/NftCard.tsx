@@ -9,7 +9,7 @@ import { useCart } from '../modules/cart/useCart'
 import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
 export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean }) {
-  const { addItem } = useCart()
+  const { addItem, isUpdating } = useCart()
   const runProtected = useProtectedAction()
 
   return (
@@ -56,7 +56,7 @@ export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean 
             <span className="block text-[0.68rem] uppercase tracking-[0.16em] text-foreground/45">Preco</span>
             <strong className="text-sm text-primarySoft">{formatEth(nft.priceEth)}</strong>
           </div>
-          <Button size="sm" onClick={() => runProtected(() => addItem(nft.id))}>
+          <Button size="sm" onClick={() => void addItem(nft.id)} disabled={isUpdating || nft.available < 1}>
             <ShoppingBag size={15} />
             Comprar
           </Button>

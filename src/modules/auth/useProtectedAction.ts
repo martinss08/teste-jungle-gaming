@@ -6,9 +6,9 @@ export function useProtectedAction() {
   const { isAuthenticated } = useAuth()
   const location = useRouterState({ select: (state) => state.location })
 
-  return useCallback((action: () => void) => {
+  return useCallback((action: () => void | Promise<void>) => {
     if (isAuthenticated) {
-      action()
+      void action()
       return
     }
 

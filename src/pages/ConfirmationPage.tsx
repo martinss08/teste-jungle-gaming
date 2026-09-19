@@ -3,6 +3,7 @@ import { CheckCircle2, ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { nfts, recentOrder } from '../data/nfts'
+import { formatEth } from '../lib/eth'
 import { useCart } from '../modules/cart/useCart'
 
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
@@ -36,11 +37,11 @@ export function ConfirmationPage() {
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-foreground/55">Taxa</dt>
-                <dd className="font-semibold">{networkFeeEth.toFixed(2)} ETH</dd>
+                <dd className="font-semibold">{formatEth(networkFeeEth)}</dd>
               </div>
               <div className="flex justify-between gap-3 border-t border-border pt-3">
                 <dt className="text-foreground/55">Total</dt>
-                <dd className="font-bold text-primarySoft">{totalEth.toFixed(2)} ETH</dd>
+                <dd className="font-bold text-primarySoft">{formatEth(totalEth)}</dd>
               </div>
             </dl>
           </div>

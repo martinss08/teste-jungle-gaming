@@ -1,14 +1,17 @@
 import type {
   CartResponse,
+  MockNftChange,
   MockScenario,
   Order,
   Profile,
   QuoteLine,
+  QuoteLineIssue,
   QuoteResponse,
   SessionResponse,
 } from '../contracts/api'
 import { nfts, wallets as fixtureWallets } from '../data/nfts'
-import type { Wallet } from '../types'
+import { addEth, compareEth, multiplyEth, percentOfEth, subtractEth } from '../lib/eth'
+import type { Nft, Wallet } from '../types'
 
 type MockUser = {
   id: string
@@ -31,6 +34,7 @@ type MockState = {
   carts: Record<string, CartResponse>
   orders: Record<string, Order>
   idempotency: Record<string, IdempotencyRecord>
+  nftChanges: Record<string, MockNftChange>
   quoteVersion: number
   scenario: MockScenario
 }
@@ -46,6 +50,10 @@ const defaultScenario: MockScenario = {
   paymentResult: 'confirmado',
   quoteChanged: false,
   timeoutNextOrder: false,
+}
+
+function seedLine(nftId: string, quantity: number) {
+  return { nftId, quantity, quotedUnitPriceEth: nfts.find((item) => item.id === nftId)?.priceEth }
 }
 
 function createInitialState(): MockState {
@@ -103,24 +111,25 @@ function createInitialState(): MockState {
     },
     carts: {
       [guestCartKey]: {
-        items: [{ nftId: 'emerald-ape-042', quantity: 1 }],
+        items: [seedLine('emerald-ape-042', 1)],
         updatedAt: new Date().toISOString(),
       },
       'user-julia': {
         items: [
-          { nftId: 'emerald-ape-042', quantity: 1 },
-          { nftId: 'sage-hood-804', quantity: 1 },
+          seedLine('emerald-ape-042', 1),
+          seedLine('sage-hood-804', 1),
         ],
         couponCode: 'KURIO10',
         updatedAt: new Date().toISOString(),
       },
       'user-caio': {
-        items: [{ nftId: 'onyx-visual-232', quantity: 1 }],
+        items: [seedLine('onyx-visual-232', 1)],
         updatedAt: new Date().toISOString(),
       },
     },
     orders: {},
     idempotency: {},
+    nftChanges: {},
     quoteVersion: 1,
     scenario: defaultScenario,
   }
@@ -151,6 +160,33 @@ export function setScenario(next: Partial<MockScenario>) {
 
 export function getGuestCartKey() {
   return guestCartKey
+}
+
+// Catalogo "vivo": fixtures + alteracoes de preco/disponibilidade aplicadas pelo mock.
+export function getNft(nftId: string): Nft | undefined {
+  const nft = nfts.find((item) => item.id === nftId)
+  if (!nft) return undefined
+  const change = state.nftChanges[nftId]
+  if (!change) return nft
+  return {
+    ...nft,
+    priceEth: change.priceEth ?? nft.priceEth,
+    previousPriceEth: change.priceEth && change.priceEth !== nft.priceEth ? nft.priceEth : nft.previousPriceEth,
+    available: change.available ?? nft.available,
+  }
+}
+
+export function listNfts(): Nft[] {
+  return nfts.map((nft) => getNft(nft.id) ?? nft)
+}
+
+export function updateNft(nftId: string, change: MockNftChange) {
+  const nft = nfts.find((item) => item.id === nftId)
+  if (!nft) return undefined
+  state.nftChanges[nftId] = { ...state.nftChanges[nftId], ...change }
+  state.quoteVersion += 1
+  persistState()
+  return getNft(nftId)
 }
 
 export function hashPassword(password: string) {
@@ -219,40 +255,72 @@ export function touchCart(owner: string) {
   persistState()
 }
 
-export function mergeGuestCartIntoUser(userId: string) {
-  const guestCart = ensureCart(guestCartKey)
+// Mescla o carrinho do visitante (identificado por X-Guest-Id) no carrinho do usuario,
+// respeitando a disponibilidade atual. O carrinho do visitante fica vazio depois.
+export function mergeGuestCartIntoUser(userId: string, guestId: string | null) {
+  const guestKey = guestId ?? guestCartKey
+  if (guestKey === userId) return
+  const guestCart = ensureCart(guestKey)
   const userCart = ensureCart(userId)
+
   for (const guestLine of guestCart.items) {
+    const nft = getNft(guestLine.nftId)
+    if (!nft || nft.available < 1) continue
     const current = userCart.items.find((line) => line.nftId === guestLine.nftId)
-    const nft = nfts.find((item) => item.id === guestLine.nftId)
     if (current) {
-      current.quantity = Math.min(nft?.available ?? current.quantity, current.quantity + guestLine.quantity)
+      current.quantity = Math.min(nft.available, current.quantity + guestLine.quantity)
     } else {
-      userCart.items.push({ ...guestLine })
+      userCart.items.push({ ...guestLine, quantity: Math.min(nft.available, guestLine.quantity) })
     }
   }
+  if (!userCart.couponCode && guestCart.couponCode) userCart.couponCode = guestCart.couponCode
+
   guestCart.items = []
+  delete guestCart.couponCode
   touchCart(userId)
-  touchCart(guestCartKey)
+  touchCart(guestKey)
+}
+
+export function addToCart(owner: string, nft: Nft, quantity: number) {
+  const cart = ensureCart(owner)
+  const current = cart.items.find((line) => line.nftId === nft.id)
+  if (current) current.quantity += quantity
+  else cart.items.push({ nftId: nft.id, quantity, quotedUnitPriceEth: nft.priceEth })
+  touchCart(owner)
+  return cart
+}
+
+function getLineIssues(quantity: number, nft: Nft | undefined, quotedUnitPriceEth: string | undefined): QuoteLineIssue[] {
+  if (!nft || nft.available < 1) return ['esgotado']
+  const issues: QuoteLineIssue[] = []
+  if (quantity > nft.available) issues.push('disponibilidade-insuficiente')
+  if (quotedUnitPriceEth && compareEth(quotedUnitPriceEth, nft.priceEth) !== 0) issues.push('preco-alterado')
+  return issues
 }
 
 export function createQuote(owner: string): QuoteResponse {
   const cart = ensureCart(owner)
   const lines: QuoteLine[] = cart.items.map((line) => {
-    const nft = nfts.find((item) => item.id === line.nftId)
+    const nft = getNft(line.nftId)
     const unitPriceEth = nft?.priceEth ?? '0'
+    const issues = getLineIssues(line.quantity, nft, line.quotedUnitPriceEth)
     return {
       nftId: line.nftId,
+      title: nft?.title ?? line.nftId,
+      edition: nft?.edition ?? '-',
+      imageUrl: nft?.hero ?? '',
       quantity: line.quantity,
       unitPriceEth,
+      previousUnitPriceEth: issues.includes('preco-alterado') ? line.quotedUnitPriceEth : undefined,
       subtotalEth: multiplyEth(unitPriceEth, line.quantity),
       available: nft?.available ?? 0,
+      issues,
     }
   })
-  const subtotalEth = lines.reduce((total, line) => addEth(total, line.subtotalEth), '0.000')
+  const subtotalEth = addEth('0', ...lines.map((line) => line.subtotalEth))
   const discountEth = getDiscountEth(cart.couponCode, subtotalEth)
   const networkFeeEth = lines.length ? '0.016' : '0.000'
-  const totalEth = addEth(addEth(subtotalEth, networkFeeEth), `-${discountEth}`)
+  const totalEth = subtractEth(addEth(subtotalEth, networkFeeEth), discountEth)
 
   return {
     lines,
@@ -263,8 +331,21 @@ export function createQuote(owner: string): QuoteResponse {
     couponCode: cart.couponCode,
     quoteVersion: state.quoteVersion,
     expiresAt: new Date(Date.now() + 1000 * 60 * 5).toISOString(),
-    stale: state.scenario.quoteChanged,
+    stale: state.scenario.quoteChanged || lines.some((line) => line.issues.length > 0),
   }
+}
+
+// O usuario revisou as alteracoes: aceita os precos atuais e ajusta quantidades ao estoque.
+export function reviewCart(owner: string) {
+  const cart = ensureCart(owner)
+  cart.items = cart.items.flatMap((line) => {
+    const nft = getNft(line.nftId)
+    if (!nft || nft.available < 1) return []
+    return [{ ...line, quantity: Math.min(line.quantity, nft.available), quotedUnitPriceEth: nft.priceEth }]
+  })
+  state.scenario = { ...state.scenario, quoteChanged: false }
+  touchCart(owner)
+  return cart
 }
 
 export function createOrderFromQuote(owner: string, orderInput: { walletId: string; network: string }) {
@@ -282,10 +363,9 @@ export function createOrderFromQuote(owner: string, orderInput: { walletId: stri
     networkFeeEth: quote.networkFeeEth,
     totalEth: quote.totalEth,
     items: quote.lines.map((line) => {
-      const nft = nfts.find((item) => item.id === line.nftId)
       return {
         nftId: line.nftId,
-        title: nft?.title ?? line.nftId,
+        title: line.title,
         quantity: line.quantity,
         unitPriceEth: line.unitPriceEth,
         subtotalEth: line.subtotalEth,
@@ -319,42 +399,15 @@ function readState(): MockState {
 
   try {
     const raw = localStorage.getItem(storageKey)
-    return raw ? (JSON.parse(raw) as MockState) : createInitialState()
+    if (!raw) return createInitialState()
+    // Estados persistidos por versoes anteriores podem nao ter campos novos.
+    return { ...createInitialState(), ...(JSON.parse(raw) as Partial<MockState>) }
   } catch {
     return createInitialState()
   }
 }
 
 function getDiscountEth(couponCode: string | undefined, subtotalEth: string) {
-  if (!couponCode) return '0.000'
-  if (couponCode === 'KURIO10') return divideEth(subtotalEth, 10)
+  if (couponCode === 'KURIO10') return percentOfEth(subtotalEth, 10)
   return '0.000'
-}
-
-function toMillis(value: string) {
-  const negative = value.startsWith('-')
-  const normalized = negative ? value.slice(1) : value
-  const [whole, fraction = ''] = normalized.split('.')
-  const millis = BigInt(whole || '0') * 1000n + BigInt(fraction.padEnd(3, '0').slice(0, 3) || '0')
-  return negative ? -millis : millis
-}
-
-function fromMillis(value: bigint) {
-  const negative = value < 0n
-  const absolute = negative ? -value : value
-  const whole = absolute / 1000n
-  const fraction = String(absolute % 1000n).padStart(3, '0')
-  return `${negative ? '-' : ''}${whole}.${fraction}`
-}
-
-function addEth(a: string, b: string) {
-  return fromMillis(toMillis(a) + toMillis(b))
-}
-
-function multiplyEth(value: string, quantity: number) {
-  return fromMillis(toMillis(value) * BigInt(quantity))
-}
-
-function divideEth(value: string, divisor: number) {
-  return fromMillis(toMillis(value) / BigInt(divisor))
 }
