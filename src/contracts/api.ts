@@ -298,4 +298,8 @@ export type MockScenario = {
   walletConnection: 'aprovar' | 'recusar'
   quoteChanged: boolean
   timeoutNextOrder: boolean
+  // Sem conexao: REST responde com erro de rede e o Socket.IO recusa conexoes.
+  offline: boolean
+  // Atrasa apenas a proxima listagem de NFTs, fazendo-a responder depois da seguinte (fora de ordem).
+  slowNextListMs: number
 }

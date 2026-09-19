@@ -19,6 +19,7 @@ test('carrinho altera quantidade, remove item e aplica cupom', async ({ page }) 
 
   await page.locator('button:visible[aria-label^="Remover"]').click()
   await expect(page.locator('h2:visible', { hasText: /Sage/i })).toHaveCount(0)
+  await expect(page.getByRole('status').filter({ hasText: 'Item removido do carrinho.' })).toBeVisible()
 })
 
 test('cupom invalido mostra erro e persistencia sobrevive ao refresh/login', async ({ page }) => {

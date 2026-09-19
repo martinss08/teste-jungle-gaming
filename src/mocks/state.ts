@@ -54,7 +54,7 @@ type MockState = {
 const storageKey = 'kurio-msw-state-v1'
 const guestCartKey = 'guest'
 
-const defaultScenario: MockScenario = {
+export const defaultScenario: MockScenario = {
   latencyMs: 120,
   jitterMs: 180,
   failNext: false,
@@ -65,6 +65,8 @@ const defaultScenario: MockScenario = {
   timeoutNextOrder: false,
   paymentDelayMs: 2500,
   walletConnection: 'aprovar',
+  offline: false,
+  slowNextListMs: 0,
 }
 
 function seedLine(nftId: string, quantity: number) {

@@ -8,6 +8,7 @@ import type {
   CreateOrderRequest,
   LoginRequest,
   MockNftChange,
+  MockScenario,
   RegisterRequest,
   UpdateAvatarRequest,
   UpdateCartItemRequest,
@@ -63,20 +64,26 @@ function nextJitter(jitterMs: number) {
 
 export const handlers = [
   http.all('/api/*', async ({ request }) => {
-    const state = getState()
-    const wait = state.scenario.latencyMs + nextJitter(state.scenario.jitterMs)
+    const url = new URL(request.url)
+    // Os controles do mock nunca sofrem as falhas simuladas, para que o cenario possa ser desfeito.
+    if (url.pathname.startsWith('/api/mock/')) return undefined
+
+    const { scenario } = getState()
+    if (scenario.offline) return HttpResponse.error()
+
+    let wait = scenario.latencyMs + nextJitter(scenario.jitterMs)
+    if (scenario.slowNextListMs > 0 && request.method === 'GET' && url.pathname === '/api/nfts') {
+      wait += scenario.slowNextListMs
+      setScenario({ slowNextListMs: 0 })
+    }
     await delay(wait)
 
-    if (state.scenario.failNext || (state.scenario.failNextCount ?? 0) > 0) {
+    if (scenario.failNext || (scenario.failNextCount ?? 0) > 0) {
       setScenario({
         failNext: false,
-        failNextCount: Math.max(0, (state.scenario.failNextCount ?? 0) - 1),
+        failNextCount: Math.max(0, (scenario.failNextCount ?? 0) - 1),
       })
       return apiError('TRANSIENT_FAILURE', 'Falha transitoria simulada.', 503)
-    }
-
-    if (request.headers.get('X-Mock-Network') === 'offline') {
-      return apiError('NETWORK_UNAVAILABLE', 'Conexao indisponivel no cenario simulado.', 503)
     }
 
     return undefined
@@ -579,6 +586,7 @@ export const handlers = [
 
   http.post('/api/mock/reset', () => {
     resetState()
+    requestSequence = 0
     return HttpResponse.json({ ok: true })
   }),
 
@@ -587,8 +595,10 @@ export const handlers = [
   }),
 
   http.patch('/api/mock/scenario', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>
-    return HttpResponse.json(setScenario(body))
+    const body = await request.json() as Partial<MockScenario>
+    const scenario = setScenario(body)
+    if (scenario.offline) dropConnections()
+    return HttpResponse.json(scenario)
   }),
 
   // Simula alteracao de preco/disponibilidade de um NFT (base para nft.updated na Fase 7).

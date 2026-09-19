@@ -134,6 +134,11 @@ function CouponFeedback() {
   )
 }
 
+function CartNotice({ className }: { className: string }) {
+  const { notice } = useCart()
+  return <p role="status" aria-live="polite" className={className}>{notice}</p>
+}
+
 function useCanCheckout() {
   const { items, quote, isQuoteLoading, isQuoteFetching, isUpdating } = useCart()
   return items.length > 0 && !isQuoteLoading && !isQuoteFetching && !isUpdating && !quote?.stale
@@ -202,6 +207,7 @@ export function CartPage() {
 
           <div className={cn('mt-3 space-y-3 pr-1', rows.length > 5 && 'cart-scroll max-h-[527px] overflow-y-auto')}>
             {error && <p role="alert" className="rounded-sm border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-100">{error}</p>}
+            <CartNotice className="min-h-5 text-sm font-bold text-success" />
             <CartChangesNotice />
             {isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
@@ -346,6 +352,7 @@ function MobileCartPage({ onCheckout }: { onCheckout: () => void }) {
 
       <div className={cn('mt-5 grid gap-5 pr-1', rows.length > 5 && 'cart-scroll max-h-[600px] overflow-y-auto')}>
         {error && <p role="alert" className="rounded-xl border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-100">{error}</p>}
+        <CartNotice className="min-h-5 text-xs font-bold text-success" />
         <CartChangesNotice />
         {isLoading ? (
           Array.from({ length: 3 }).map((_, index) => (

@@ -83,6 +83,8 @@ export async function resetMock(page: Page) {
       walletConnection: 'aprovar',
       quoteChanged: false,
       timeoutNextOrder: false,
+      offline: false,
+      slowNextListMs: 0,
     },
   })
   expect(scenario.ok).toBeTruthy()

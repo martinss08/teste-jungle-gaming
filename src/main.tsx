@@ -18,6 +18,13 @@ import { RegisterPage } from './pages/RegisterPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { WalletsPage } from './pages/WalletsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import '@fontsource/inter/latin-400.css'
+import '@fontsource/inter/latin-500.css'
+import '@fontsource/inter/latin-600.css'
+import '@fontsource/inter/latin-700.css'
+import '@fontsource/inter/latin-800.css'
+import '@fontsource/space-grotesk/latin-600.css'
+import '@fontsource/space-grotesk/latin-700.css'
 import './styles.css'
 
 async function enableMocking() {
@@ -26,14 +33,8 @@ async function enableMocking() {
     import.meta.env.VITE_ENABLE_MSW === 'true'
 
   if (!shouldEnable) return
-
-  const { worker } = await import('./mocks/browser')
-  await worker.start({
-    onUnhandledRequest: 'bypass',
-    serviceWorker: {
-      url: '/mockServiceWorker.js',
-    },
-  })
+  const { startMockWorker } = await import('./mocks/browser')
+  await startMockWorker()
 }
 
 const queryClient = new QueryClient({

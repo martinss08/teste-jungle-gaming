@@ -1,6 +1,6 @@
 import { type WebSocketHandlerConnection, ws } from 'msw'
 import type { NftUpdatedEvent, OrderUpdatedEvent } from '../contracts/api'
-import { onMockChange, resolveSessionToken, resumePendingSettlements } from './state'
+import { getState, onMockChange, resolveSessionToken, resumePendingSettlements } from './state'
 
 // Servidor Socket.IO simulado sobre a interceptacao de WebSocket do MSW.
 // Implementa o minimo do protocolo usado pelo socket.io-client v4 com transporte `websocket`:
@@ -72,6 +72,11 @@ onMockChange((change) => {
 resumePendingSettlements()
 
 export const realtimeHandler = realtime.addEventListener('connection', ({ client }) => {
+  // Sem conexao simulada: recusa o socket; o socket.io-client segue tentando reconectar.
+  if (getState().scenario.offline) {
+    client.close()
+    return
+  }
   const connection: Connection = { client, userId: null, joined: false }
   connections.add(connection)
 

@@ -5,10 +5,34 @@ import type { LoginRequest, RegisterRequest, SessionResponse } from '../../contr
 import { api, clearSessionToken, getSessionToken, setSessionToken } from '../../lib/api'
 import { AuthContext } from './AuthContext'
 
+const sessionExpiredKey = 'kurio-session-expired'
+
+// O aviso de sessao expirada sobrevive a um refresh da aba para que o usuario saiba por que precisa entrar de novo.
+function readSessionExpired() {
+  try {
+    return sessionStorage.getItem(sessionExpiredKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function writeSessionExpired(expired: boolean) {
+  try {
+    if (expired) sessionStorage.setItem(sessionExpiredKey, 'true')
+    else sessionStorage.removeItem(sessionExpiredKey)
+  } catch {
+    // Sem storage o aviso vale apenas para a pagina atual.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [token, setToken] = useState(() => getSessionToken())
-  const [sessionExpired, setSessionExpired] = useState(false)
+  const [sessionExpired, setSessionExpiredState] = useState(readSessionExpired)
+  const setSessionExpired = useCallback((expired: boolean) => {
+    writeSessionExpired(expired)
+    setSessionExpiredState(expired)
+  }, [])
 
   const sessionQuery = useQuery({
     queryKey: ['session'],
@@ -37,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.setQueryData(['session'], data)
     await queryClient.invalidateQueries({ queryKey: ['cart'] })
     return data
-  }, [queryClient])
+  }, [queryClient, setSessionExpired])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     const payload: RegisterRequest = { name, email, password }
@@ -49,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.setQueryData(['session'], data)
     await queryClient.invalidateQueries({ queryKey: ['cart'] })
     return data
-  }, [queryClient])
+  }, [queryClient, setSessionExpired])
 
   const logout = useCallback(async () => {
     try {
@@ -60,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionExpired(false)
       queryClient.clear()
     }
-  }, [queryClient])
+  }, [queryClient, setSessionExpired])
 
   const expireSession = useCallback(() => {
     if (!getSessionToken()) return
@@ -68,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setSessionExpired(true)
     queryClient.clear()
-  }, [queryClient])
+  }, [queryClient, setSessionExpired])
 
   // Qualquer 401 em uma requisicao autenticada encerra a sessao local, inclusive em telas publicas.
   useEffect(() => {

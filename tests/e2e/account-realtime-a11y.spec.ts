@@ -111,8 +111,15 @@ test('navegacao por teclado, foco do modal e validacoes acessiveis', async ({ pa
 })
 
 test('responsividade das rotas autenticadas', async ({ page }) => {
-  for (const route of ['/pagamento', '/perfil', '/carteiras']) {
+  const routes = [
+    ['/pagamento', /Perfil do colecionador|Seu carrinho esta vazio/],
+    ['/perfil', /Dados da conta/],
+    ['/carteiras', /Gerencie enderecos/],
+  ] as const
+  for (const [route, heading] of routes) {
     await page.goto(route)
+    // Espera a rota carregar para que uma navegacao pendente nao interrompa a proxima.
+    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
     await expectNoHorizontalOverflow(page)
   }
 })

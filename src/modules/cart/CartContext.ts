@@ -30,6 +30,8 @@ export type CartContextValue = {
   isUpdating: boolean
   error: string | null
   couponError: string | null
+  // Confirmacao da ultima mutation bem-sucedida, anunciada por leitores de tela.
+  notice: string | null
   clearError: () => void
 }
 
