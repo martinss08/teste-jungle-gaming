@@ -19,7 +19,6 @@ import {
   createSession,
   ensureCart,
   getCartOwner,
-  getGuestCartKey,
   getState,
   hashPassword,
   mergeGuestCartIntoUser,

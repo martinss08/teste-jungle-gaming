@@ -1,11 +1,14 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, ChevronRight, Heart, Home, Search, ShoppingCart, SlidersHorizontal, UserRound } from 'lucide-react'
+import type { FormEvent } from 'react'
 import { Button } from '../components/ui/Button'
 import { categories, nfts } from '../data/nfts'
-import type { Nft } from '../types'
+import type { Nft, Rarity } from '../types'
 import { formatEth } from '../lib/utils'
 import { useCart } from '../modules/cart/useCart'
+import { listNfts } from '../modules/catalog/api'
+import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
 type HomeSearch = {
   q: string
@@ -34,26 +37,8 @@ const blogPosts = [
   ['Como proteger sua carteira', 'Proteja sua carteira, seus ativos e sua identidade.'],
 ]
 
-function filterNfts(search: HomeSearch): Nft[] {
-  const query = search.q.toLowerCase().trim()
-  const result = nfts.filter((nft) => {
-    const matchesQuery =
-      !query ||
-      nft.title.toLowerCase().includes(query) ||
-      nft.creator.toLowerCase().includes(query) ||
-      nft.collection.toLowerCase().includes(query)
-    const matchesRarity = search.rarity === 'todos' || nft.rarity === search.rarity
-    return matchesQuery && matchesRarity
-  })
-
-  return result.sort((a, b) => {
-    if (search.sort === 'preco-menor') return Number(a.priceEth) - Number(b.priceEth)
-    if (search.sort === 'preco-maior') return Number(b.priceEth) - Number(a.priceEth)
-    return a.title.localeCompare(b.title)
-  })
-}
-
 function repeatNfts(items: Nft[], minLength = 9) {
+  if (!items.length) return []
   return Array.from({ length: minLength }, (_, index) => items[index % items.length])
 }
 
@@ -108,15 +93,19 @@ function PromoTile({ nft, reverse = false }: { nft: Nft; reverse?: boolean }) {
 export function HomePage() {
   const search = useSearch({ from: '/' }) as HomeSearch
   const navigate = useNavigate({ from: '/' })
-  const { data = [], isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['nfts', search],
-    queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 140))
-      return filterNfts(search)
-    },
+    queryFn: ({ signal }) => listNfts({
+      q: search.q,
+      rarity: search.rarity as Rarity | 'todos',
+      sort: search.sort as 'recentes' | 'preco-menor' | 'preco-maior',
+      page: search.page,
+      pageSize: 6,
+    }, signal),
   })
   const featured = nfts[0]
-  const marketItems = repeatNfts(data.length ? data : nfts)
+  const apiItems = data?.items ?? []
+  const marketItems = repeatNfts(apiItems)
 
   const updateSearch = (next: Partial<HomeSearch>) => {
     navigate({
@@ -126,7 +115,7 @@ export function HomePage() {
 
   return (
     <>
-      <MobileHomePage />
+      <MobileHomePage items={apiItems} isLoading={isLoading} isError={isError} query={search.q} onSearch={(q) => updateSearch({ q })} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-8 sm:px-6 md:block lg:px-[120px]">
       <section className="grid gap-8 lg:min-h-[450px] lg:grid-cols-[600px_450px] lg:items-center lg:justify-between">
@@ -236,35 +225,64 @@ export function HomePage() {
               Ordenar por: Listados recentemente
             </button>
           </div>
+          <form className="mt-5 flex max-w-md overflow-hidden rounded-sm border border-border bg-[#160b08]" onSubmit={(event) => {
+            event.preventDefault()
+            const form = new FormData(event.currentTarget)
+            updateSearch({ q: String(form.get('q') ?? '') })
+          }}>
+            <input
+              name="q"
+              defaultValue={search.q}
+              className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
+              placeholder="Buscar por NFT, criador ou colecao"
+            />
+            <Button type="submit" className="rounded-none">
+              <Search size={15} />
+              Buscar
+            </Button>
+          </form>
 
-          {isLoading ? (
+          {isError ? (
+            <div className="mt-7 bg-card p-8 text-center">
+              <h2 className="font-display text-2xl font-bold">Nao foi possivel carregar o catalogo</h2>
+              <p className="mt-2 text-sm text-[#9b826d]">Verifique o cenario de rede simulado e tente novamente.</p>
+              <Button className="mt-5" onClick={() => void refetch()}>Tentar novamente</Button>
+            </div>
+          ) : isLoading ? (
             <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
               {Array.from({ length: 9 }).map((_, index) => (
                 <div key={index} className="aspect-[0.78] animate-pulse bg-card" />
               ))}
             </div>
-          ) : (
+          ) : marketItems.length ? (
             <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
               {marketItems.map((nft, index) => (
                 <MarketCard key={`${nft.id}-${index}`} nft={nft} index={index} />
               ))}
             </div>
+          ) : (
+            <div className="mt-7 bg-card p-8 text-center">
+              <h2 className="font-display text-2xl font-bold">Nenhum NFT encontrado</h2>
+              <p className="mt-2 text-sm text-[#9b826d]">Ajuste a busca ou remova filtros para ver mais obras.</p>
+            </div>
           )}
 
           <div className="mt-16 flex justify-end gap-2">
-            {[1, 2, 3, 4].map((page) => (
+            {Array.from({ length: data?.totalPages ?? 1 }, (_, index) => index + 1).map((page) => (
               <button
                 key={page}
                 type="button"
-                className={page === 1 ? 'grid size-8 place-items-center rounded-sm bg-primary text-sm font-bold text-[#160b08]' : 'grid size-8 place-items-center rounded-sm border border-border text-sm font-bold text-[#9a806a]'}
+                className={page === search.page ? 'grid size-8 place-items-center rounded-sm bg-primary text-sm font-bold text-[#160b08]' : 'grid size-8 place-items-center rounded-sm border border-border text-sm font-bold text-[#9a806a]'}
+                onClick={() => updateSearch({ page })}
               >
                 {page}
               </button>
             ))}
-            <button type="button" className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a]">
+            <button type="button" className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a]" onClick={() => updateSearch({ page: Math.min((data?.totalPages ?? 1), search.page + 1) })}>
               <ChevronRight size={15} />
             </button>
           </div>
+          {isFetching && !isLoading && <p className="mt-3 text-right text-xs font-bold text-primarySoft">Atualizando catalogo...</p>}
         </div>
       </section>
 
@@ -327,20 +345,37 @@ export function HomePage() {
   )
 }
 
-function MobileHomePage() {
-  const items = [nfts[0], nfts[1], nfts[2], nfts[3], nfts[4], nfts[5]]
+function MobileHomePage({
+  items,
+  isLoading,
+  isError,
+  query,
+  onSearch,
+}: {
+  items: Nft[]
+  isLoading: boolean
+  isError: boolean
+  query: string
+  onSearch: (q: string) => void
+}) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    onSearch(String(form.get('q') ?? ''))
+  }
+
 
   return (
     <div className="min-h-screen bg-[#120906] px-6 pb-28 pt-10 font-mono text-foreground md:hidden">
-      <div className="flex gap-2">
+      <form className="flex gap-2" onSubmit={handleSubmit}>
         <label className="flex h-[46px] min-w-0 flex-1 items-center gap-3 rounded-lg bg-card px-4 text-[#caa677]">
           <Search size={20} />
-          <input className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
+          <input name="q" defaultValue={query} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-[#caa677]" placeholder="Explorar colecoes" />
         </label>
-        <button type="button" className="grid size-[46px] place-items-center rounded-xl bg-[#d9904b] text-[#120906]" aria-label="Filtros">
+        <button type="submit" className="grid size-[46px] place-items-center rounded-xl bg-[#d9904b] text-[#120906]" aria-label="Buscar">
           <SlidersHorizontal size={22} />
         </button>
-      </div>
+      </form>
 
       <section className="relative mt-4 overflow-hidden rounded-[24px] bg-[#3a2115] px-4 py-4">
         <div className="relative z-10 max-w-[48%]">
@@ -375,11 +410,27 @@ function MobileHomePage() {
         <button type="button" className="pb-1 text-foreground">Em alta</button>
       </nav>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
+      {isError ? (
+        <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">
+          Nao foi possivel carregar o catalogo.
+        </div>
+      ) : isLoading ? (
+        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="aspect-[0.82] animate-pulse rounded-[20px] bg-card" />
+          ))}
+        </div>
+      ) : items.length ? (
+        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
         {items.map((nft, index) => (
           <MobileNftCard key={`${nft.id}-${index}`} nft={nft} index={index} />
         ))}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">
+          Nenhum NFT encontrado.
+        </div>
+      )}
 
       <MobileBottomNav />
     </div>
@@ -389,13 +440,22 @@ function MobileHomePage() {
 function MobileNftCard({ nft, index }: { nft: Nft; index: number }) {
   const names = ['Emerald Ape #042', 'Sage Nomad #009', 'Ivory Baron #088', 'Golden Beat #207', 'Cocoa Bloom #118', 'Mint Rover #601']
   const prices = ['1.19', '1.69', '2.12', '1.98', '2.24', '0.72']
+  const runProtected = useProtectedAction()
 
   return (
     <Link to="/nft/$nftId" params={{ nftId: nft.id }} className={index % 2 === 1 ? 'mt-8 block' : 'block'}>
       <div className="relative overflow-hidden rounded-[20px] bg-card p-1">
         {index === 2 && <span className="absolute left-0 top-4 z-10 bg-primary px-3 py-2 text-[0.65rem] font-black text-[#120906]">RARO</span>}
         {index === 0 && (
-          <button type="button" className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full border border-primary bg-card/85 text-primarySoft" aria-label="Favoritar">
+          <button
+            type="button"
+            className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full border border-primary bg-card/85 text-primarySoft"
+            aria-label="Favoritar"
+            onClick={(event) => {
+              event.preventDefault()
+              runProtected(() => undefined)
+            }}
+          >
             <Heart size={17} />
           </button>
         )}
@@ -409,13 +469,14 @@ function MobileNftCard({ nft, index }: { nft: Nft; index: number }) {
 
 function MobileBottomNav() {
   const { itemCount } = useCart()
+  const runProtected = useProtectedAction()
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-[94px] max-w-md items-center justify-around rounded-t-[28px] bg-card px-7 text-[#dfb98c] shadow-[0_-18px_50px_rgba(0,0,0,0.3)]">
       <Link to="/" search={{ q: '', rarity: 'todos', sort: 'recentes', page: 1 }} aria-label="Inicio">
         <Home size={22} className="fill-current" />
       </Link>
-      <button type="button" aria-label="Favoritos">
+      <button type="button" aria-label="Favoritos" onClick={() => runProtected(() => undefined)}>
         <Heart size={22} className="fill-current" />
       </button>
       <button type="button" className="-mt-12 grid size-16 place-items-center rounded-full bg-[#c57d3b] text-white shadow-glow" aria-label="Abrir scanner">

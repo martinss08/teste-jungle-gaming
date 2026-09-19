@@ -1,12 +1,18 @@
 import { Link, useParams } from '@tanstack/react-router'
 import { ArrowLeft, Heart, Linkedin, Mail, Minus, Plus, Search, ShoppingCart, Star, Twitter } from 'lucide-react'
 import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { Button } from '../components/ui/Button'
 import { nfts } from '../data/nfts'
 import { formatEth } from '../lib/utils'
 import type { Nft } from '../types'
 import { useCart } from '../modules/cart/useCart'
 import { NotFoundPage } from './NotFoundPage'
+import { addFavorite, getFavorites, getNft, removeFavorite } from '../modules/catalog/api'
+import { useAuth } from '../modules/auth/useAuth'
+import type { FavoriteResponse } from '../contracts/api'
+import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 
@@ -76,12 +82,74 @@ function BenefitsSignup() {
 
 export function NftDetailsPage() {
   const { nftId } = useParams({ from: '/nft/$nftId' })
-  const nft = nfts.find((item) => item.id === nftId)
   const [quantity, setQuantity] = useState(1)
   const [relatedPage, setRelatedPage] = useState(0)
   const { addItem } = useCart()
+  const { isAuthenticated } = useAuth()
+  const runProtected = useProtectedAction()
+  const queryClient = useQueryClient()
+  const nftQuery = useQuery({
+    queryKey: ['nft', nftId],
+    queryFn: () => getNft(nftId),
+    retry: false,
+  })
+  const favoritesQuery = useQuery({
+    queryKey: ['favorites'],
+    queryFn: getFavorites,
+    enabled: isAuthenticated,
+    retry: false,
+  })
+  const nft = nftQuery.data
+  const isFavorite = Boolean(favoritesQuery.data?.nftIds.includes(nftId))
+  const favoriteMutation = useMutation({
+    mutationFn: () => (isFavorite ? removeFavorite(nftId) : addFavorite(nftId)),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['favorites'] })
+      const previous = queryClient.getQueryData<FavoriteResponse>(['favorites'])
+      queryClient.setQueryData<FavoriteResponse>(['favorites'], {
+        nftIds: isFavorite
+          ? (previous?.nftIds ?? []).filter((id) => id !== nftId)
+          : [...(previous?.nftIds ?? []), nftId],
+      })
+      return { previous }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(['favorites'], context.previous)
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['favorites'] })
+    },
+  })
+  const handleBuy = () => runProtected(() => addItem(nftId, quantity))
+  const handleFavorite = () => runProtected(() => favoriteMutation.mutate())
 
-  if (!nft) return <NotFoundPage />
+  if (nftQuery.isLoading) {
+    return (
+      <div className="mx-auto max-w-[1440px] px-6 py-10 lg:px-[120px]">
+        <div className="grid gap-8 lg:grid-cols-[604px_1fr]">
+          <div className="aspect-square animate-pulse rounded-[20px] bg-card" />
+          <div className="space-y-4">
+            <div className="h-10 w-2/3 animate-pulse rounded bg-card" />
+            <div className="h-6 w-1/3 animate-pulse rounded bg-card" />
+            <div className="h-36 animate-pulse rounded bg-card" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!nft || (axios.isAxiosError(nftQuery.error) && nftQuery.error.response?.status === 404)) return <NotFoundPage />
+  if (nftQuery.isError) {
+    return (
+      <div className="grid min-h-[55vh] place-items-center px-6 text-center">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Nao foi possivel carregar este NFT</h1>
+          <p className="mt-3 text-sm text-foreground/60">Tente novamente em alguns instantes.</p>
+          <Button className="mt-5" onClick={() => void nftQuery.refetch()}>Tentar novamente</Button>
+        </div>
+      </div>
+    )
+  }
 
   const relatedPool = nfts.filter((item) => item.id !== nft.id)
   const relatedPages = Array.from({ length: 3 }, (_, pageIndex) =>
@@ -92,7 +160,7 @@ export function NftDetailsPage() {
 
   return (
     <>
-      <MobileNftDetails nft={nft} quantity={quantity} setQuantity={setQuantity} addItem={addItem} />
+      <MobileNftDetails nft={nft} quantity={quantity} setQuantity={setQuantity} buy={handleBuy} isFavorite={isFavorite} toggleFavorite={handleFavorite} canFavorite={isAuthenticated} />
 
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
@@ -176,12 +244,17 @@ export function NftDetailsPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button className="min-w-[150px]" onClick={() => addItem(nft.id, quantity)} disabled={!nft.available}>
+                <Button className="min-w-[150px]" onClick={handleBuy} disabled={!nft.available}>
                   Comprar
                 </Button>
-                <Button variant="secondary" className="min-w-[145px] border-primary text-primarySoft">
+                <Button
+                  variant="secondary"
+                  className="min-w-[145px] border-primary text-primarySoft"
+                  onClick={handleFavorite}
+                  disabled={favoriteMutation.isPending}
+                >
                   <Heart size={18} />
-                  Favoritar
+                  {isFavorite ? 'Favorito' : 'Favoritar'}
                 </Button>
               </div>
             </div>
@@ -265,12 +338,18 @@ function MobileNftDetails({
   nft,
   quantity,
   setQuantity,
-  addItem,
+  buy,
+  isFavorite,
+  toggleFavorite,
+  canFavorite,
 }: {
   nft: Nft
   quantity: number
   setQuantity: Dispatch<SetStateAction<number>>
-  addItem: (nftId: string, quantity?: number) => void
+  buy: () => void
+  isFavorite: boolean
+  toggleFavorite: () => void
+  canFavorite: boolean
 }) {
   return (
     <div className="min-h-screen bg-[#120906] font-mono text-foreground md:hidden">
@@ -278,15 +357,20 @@ function MobileNftDetails({
         <Link to="/" search={homeSearch} className="absolute left-7 top-6 z-20 grid size-9 place-items-center rounded-full border border-border bg-card/70 text-primarySoft" aria-label="Voltar">
           <ArrowLeft size={20} />
         </Link>
-        <button type="button" className="absolute right-7 top-6 z-20 grid size-9 place-items-center rounded-full border border-border bg-card/70 text-primarySoft" aria-label="Favoritar">
-          <Heart size={18} />
+        <button
+          type="button"
+          className="absolute right-7 top-6 z-20 grid size-9 place-items-center rounded-full border border-border bg-card/70 text-primarySoft disabled:opacity-50"
+          aria-label={canFavorite && isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
+          onClick={toggleFavorite}
+        >
+          <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
         </button>
         <img src={nft.hero} alt={nft.title} className="h-[395px] w-full rounded-[20px] object-cover" />
       </div>
 
       <section className="-mt-[70px] relative z-10 rounded-t-[24px] bg-card px-6 pb-8 pt-8 shadow-[0_-20px_60px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-black tracking-[0.03em]">Emerald Ape #042</h1>
+          <h1 className="text-xl font-black tracking-[0.03em]">{nft.title}</h1>
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary px-2 py-1 text-xs font-bold">
             <Star size={13} className="fill-primary text-primary" />
             4.8(19)
@@ -322,14 +406,14 @@ function MobileNftDetails({
               <Plus size={15} />
             </button>
           </div>
-          <p className="text-xl font-black text-primarySoft">1.19 ETH</p>
+          <p className="text-xl font-black text-primarySoft">{nft.priceEth} ETH</p>
         </div>
 
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="h-[58px] flex-1 rounded-[28px] bg-primary text-sm font-black text-[#120906]" onClick={() => addItem(nft.id, quantity)}>
+          <button type="button" className="h-[58px] flex-1 rounded-[28px] bg-primary text-sm font-black text-[#120906]" onClick={buy}>
             Comprar NFT
           </button>
-          <button type="button" className="grid size-[58px] place-items-center rounded-full border border-border bg-[#2e1a12] text-[#d1b38f]" onClick={() => addItem(nft.id, quantity)} aria-label="Adicionar ao carrinho">
+          <button type="button" className="grid size-[58px] place-items-center rounded-full border border-border bg-[#2e1a12] text-[#d1b38f]" onClick={buy} aria-label="Adicionar ao carrinho">
             <ShoppingCart size={21} className="fill-current" />
           </button>
         </div>

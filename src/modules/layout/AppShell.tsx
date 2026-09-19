@@ -1,10 +1,11 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { EyeOff, Instagram, Linkedin, Menu, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
-import { useState } from 'react'
+import { Instagram, Linkedin, Menu, Search, ShoppingCart, UserRound, Youtube } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { useCart } from '../cart/useCart'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../auth/useAuth'
+import { AuthModalPage } from '../../pages/LoginPage'
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -15,123 +16,27 @@ const links = [
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 type AuthMode = 'login' | 'register'
 
-function AuthModal({
-  mode,
-  onModeChange,
-  onClose,
-}: {
-  mode: AuthMode
-  onModeChange: (mode: AuthMode) => void
-  onClose: () => void
-}) {
-  const isLogin = mode === 'login'
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#080403]/70 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={isLogin ? 'Entrar' : 'Criar conta'}>
-      <div className="relative w-full max-w-[500px] overflow-hidden rounded-b-md border-b-8 border-primary bg-card shadow-glow">
-        <button
-          type="button"
-          className="absolute right-4 top-4 grid size-8 place-items-center text-primarySoft transition hover:text-primary"
-          onClick={onClose}
-          aria-label="Fechar modal"
-        >
-          <X size={22} />
-        </button>
-
-        <div className="px-10 pb-10 pt-12 sm:px-20">
-          <div className="flex justify-center font-display text-2xl font-bold tracking-[0.08em]">
-            <button
-              type="button"
-              className={isLogin ? 'text-primary' : 'text-foreground'}
-              onClick={() => onModeChange('login')}
-            >
-              Entrar
-            </button>
-            <span className="px-2 text-[#9b826d]">|</span>
-            <button
-              type="button"
-              className={!isLogin ? 'text-primary' : 'text-foreground'}
-              onClick={() => onModeChange('register')}
-            >
-              Criar conta
-            </button>
-          </div>
-
-          <p className="mx-auto mt-9 max-w-[360px] text-center font-display text-sm leading-6 text-foreground">
-            {isLogin
-              ? 'Entre para gerenciar sua carteira, colecao e perfil de criador.'
-              : 'Crie seu perfil de colecionador e conecte uma carteira quando quiser.'}
-          </p>
-
-          <form key={mode} className="mt-6 grid gap-3">
-            {!isLogin && (
-              <input
-                className="h-10 rounded-md border border-border bg-[#23110c] px-4 font-display text-sm text-foreground placeholder:text-[#a98461] outline-none focus:border-primary"
-                placeholder="Nome de usuario"
-              />
-            )}
-            <input
-              className="h-10 rounded-md border border-border bg-[#23110c] px-4 font-display text-sm text-foreground placeholder:text-[#a98461] outline-none focus:border-primary"
-              type="email"
-              defaultValue={isLogin ? 'contato@email.com' : undefined}
-              placeholder={isLogin ? 'contato@email.com' : 'Digite seu e-mail'}
-            />
-            <div className="relative">
-              <input
-                className="h-10 w-full rounded-md border border-primary bg-[#23110c] px-4 pr-11 font-display text-sm text-foreground placeholder:text-[#a98461] outline-none"
-                type="password"
-                defaultValue={isLogin ? 'kurioaccess' : undefined}
-                placeholder="Senha"
-              />
-              <EyeOff className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#a98461]" size={20} />
-            </div>
-            {!isLogin && (
-              <input
-                className="h-10 rounded-md border border-border bg-[#23110c] px-4 font-display text-sm text-foreground placeholder:text-[#a98461] outline-none focus:border-primary"
-                type="password"
-                placeholder="Confirmar senha"
-              />
-            )}
-            {isLogin && (
-              <button type="button" className="mt-1 self-end font-display text-sm text-primarySoft hover:text-primary">
-                Esqueceu a senha?
-              </button>
-            )}
-            <Button type="button" className="mt-5 h-[45px] w-full font-display text-lg">
-              {isLogin ? 'Entrar' : 'Criar conta'}
-            </Button>
-          </form>
-
-          <div className="mt-7 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="font-display text-sm text-foreground">Ou continue com</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-md border border-border bg-[#23110c] font-display text-sm text-[#ccb59d]">
-              <span className="text-xl font-bold text-[#4285f4]">G</span>
-              Continuar com Google
-            </button>
-            <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-md border border-border bg-[#23110c] font-display text-sm text-[#ccb59d]">
-              <span className="text-2xl font-bold text-[#4267b2]">f</span>
-              Continuar com Facebook
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function AppShell() {
   const [open, setOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authOpen, setAuthOpen] = useState(false)
+  const [authRedirect, setAuthRedirect] = useState('/')
   const { itemCount } = useCart()
   const { session, isAuthenticated, logout } = useAuth()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isMarket = pathname.startsWith('/nft/')
+
+  useEffect(() => {
+    const handleAuthRequired = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: AuthMode; redirect?: string }>).detail
+      setAuthMode(detail?.mode ?? 'login')
+      setAuthRedirect(detail?.redirect ?? pathname)
+      setAuthOpen(true)
+    }
+
+    window.addEventListener('kurio:auth-required', handleAuthRequired)
+    return () => window.removeEventListener('kurio:auth-required', handleAuthRequired)
+  }, [pathname])
 
   return (
     <div className="min-h-screen">
@@ -304,9 +209,10 @@ export function AppShell() {
       </footer>
 
       {authOpen && (
-        <AuthModal
+        <AuthModalPage
           mode={authMode}
           onModeChange={setAuthMode}
+          redirect={authRedirect}
           onClose={() => setAuthOpen(false)}
         />
       )}

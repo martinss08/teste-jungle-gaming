@@ -6,9 +6,11 @@ import { Card } from './ui/Card'
 import { formatEth } from '../lib/utils'
 import type { Nft } from '../types'
 import { useCart } from '../modules/cart/useCart'
+import { useProtectedAction } from '../modules/auth/useProtectedAction'
 
 export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean }) {
   const { addItem } = useCart()
+  const runProtected = useProtectedAction()
 
   return (
     <Card className="group overflow-hidden">
@@ -38,6 +40,7 @@ export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean 
             type="button"
             className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-foreground/60 hover:border-primary/70 hover:text-primarySoft"
             aria-label={`Favoritar ${nft.title}`}
+            onClick={() => runProtected(() => undefined)}
           >
             <Heart size={16} />
           </button>
@@ -53,7 +56,7 @@ export function NftCard({ nft, compact = false }: { nft: Nft; compact?: boolean 
             <span className="block text-[0.68rem] uppercase tracking-[0.16em] text-foreground/45">Preco</span>
             <strong className="text-sm text-primarySoft">{formatEth(nft.priceEth)}</strong>
           </div>
-          <Button size="sm" onClick={() => addItem(nft.id)}>
+          <Button size="sm" onClick={() => runProtected(() => addItem(nft.id))}>
             <ShoppingBag size={15} />
             Comprar
           </Button>

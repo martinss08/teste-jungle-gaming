@@ -8,7 +8,7 @@ import type {
   SessionResponse,
 } from '../contracts/api'
 import { nfts, wallets as fixtureWallets } from '../data/nfts'
-import type { CartLine, Wallet } from '../types'
+import type { Wallet } from '../types'
 
 type MockUser = {
   id: string
