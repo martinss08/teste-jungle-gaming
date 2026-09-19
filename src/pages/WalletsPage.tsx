@@ -54,6 +54,12 @@ function WalletForm({
     network: wallet?.network ?? SUPPORTED_NETWORKS[0],
     kind: wallet?.kind ?? defaultKind,
   })
+  // Promover outra carteira rebaixa esta no servidor: acompanha o tipo sem remontar o formulario.
+  const [syncedKind, setSyncedKind] = useState(wallet?.kind)
+  if (wallet && wallet.kind !== syncedKind) {
+    setSyncedKind(wallet.kind)
+    setForm((current) => ({ ...current, kind: wallet.kind }))
+  }
   const [errors, setErrors] = useState<WalletErrors>({})
   const [status, setStatus] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
@@ -260,7 +266,7 @@ export function WalletsPage() {
                 </div>
               </div>
               {/* A chave inclui o tipo: quando outra carteira vira principal, o form reinicia com o valor atual. */}
-              <WalletForm key={`${wallet.id}-${wallet.kind}`} userId={userId} wallet={wallet} defaultKind={wallet.kind} />
+              <WalletForm key={wallet.id} userId={userId} wallet={wallet} defaultKind={wallet.kind} />
             </Card>
           ))}
         </div>

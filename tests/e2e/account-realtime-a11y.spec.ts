@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addCartItem, browserApi, expectNoHorizontalOverflow, loginByApi, nfts, patchNft, postMock, resetMock, secondUser, setScenario, user } from './helpers'
+import { addCartItem, browserApi, expectNoHorizontalOverflow, loginByApi, nfts, patchNft, postMock, resetMock, reviewCheckout, secondUser, setScenario, user } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
@@ -18,21 +18,57 @@ test('perfil edita dados, valida formulario e altera senha', async ({ page }) =>
   await expect(page.locator('#password-newPassword-error')).toBeVisible()
 })
 
-test('avatar simulado e troca de usuario nao vazam dados', async ({ page }) => {
+test('avatar enviado pela interface valida o arquivo e persiste apos refresh', async ({ page }) => {
   await page.goto('/perfil')
-  const avatar = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/ASP/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/ASP/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAY/Aqf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/IV//2gAMAwEAAgADAAAAEP/EFBQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8QH//EFBQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8QH//EFBABAQAAAAAAAAAAAAAAAAAAABD/2gAIAQEAAT8QH//Z'
-  await browserApi(page, '/api/profile/avatar', { method: 'POST', data: { dataUrl: avatar } })
-  await page.reload()
-  await expect(page.getByAltText(/Avatar de Julia Monteiro/i)).toHaveAttribute('src', avatar)
+  const fileInput = page.locator('#avatar-file')
+  const status = page.getByRole('status').filter({ hasText: /avatar|imagem/i })
 
-  await page.evaluate(async () => {
-    await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('kurio-session-token') ?? ''}` } })
-    localStorage.removeItem('kurio-session-token')
-  })
-  await loginByApi(page, secondUser)
+  await fileInput.setInputFiles({ name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from('nao e imagem') })
+  await expect(status).toHaveText(/Envie uma imagem PNG, JPEG ou WebP/i)
+
+  await fileInput.setInputFiles('src/assets/kurio-ape-1.png')
+  await expect(status).toHaveText('Avatar atualizado.')
+  const avatar = page.getByAltText(/Avatar de Julia Monteiro/i)
+  await expect(avatar).toHaveAttribute('src', /^data:image\/jpeg;base64,/)
+  const uploaded = await avatar.getAttribute('src')
+
+  await page.reload()
+  await expect(page.getByAltText(/Avatar de Julia Monteiro/i)).toHaveAttribute('src', uploaded!)
+})
+
+test('perfil mostra conflito de e-mail e nome de usuario retornado pela API', async ({ page }) => {
   await page.goto('/perfil')
-  await expect(page.getByRole('heading', { name: secondUser.name })).toBeVisible()
-  await expect(page.getByText(user.name)).toHaveCount(0)
+  await page.locator('#profile-email').fill(secondUser.email)
+  await page.locator('#profile-username').fill('caio')
+  await page.getByRole('button', { name: /Salvar alteracoes/i }).click()
+  await expect(page.locator('#profile-email-error')).toHaveText(/ja cadastrado/i)
+  await expect(page.locator('#profile-username-error')).toHaveText(/indisponivel/i)
+  await expect(page.locator('#profile-email')).toHaveAttribute('aria-invalid', 'true')
+
+  await page.reload()
+  await expect(page.locator('#profile-email')).toHaveValue(user.email)
+})
+
+test('carteira existente e editada, validada e promovida a principal', async ({ page }) => {
+  await page.goto('/carteiras')
+  const secondaryForm = page.locator('form', { has: page.locator('#wallet-wallet-secondary-label') })
+  const mainForm = page.locator('form', { has: page.locator('#wallet-wallet-main-label') })
+
+  await secondaryForm.locator('#wallet-wallet-secondary-label').fill('Reserva QA')
+  await secondaryForm.locator('#wallet-wallet-secondary-address').fill('0x123')
+  await secondaryForm.getByRole('button', { name: /Salvar carteira/i }).click()
+  await expect(secondaryForm.locator('#wallet-wallet-secondary-address-error')).toBeVisible()
+
+  await secondaryForm.locator('#wallet-wallet-secondary-address').fill('0x2222222222222222222222222222222222222222')
+  await secondaryForm.getByLabel('Principal').check()
+  await secondaryForm.getByRole('button', { name: /Salvar carteira/i }).click()
+  await expect(secondaryForm.getByRole('status')).toHaveText('Carteira salva.')
+  await expect(mainForm.getByLabel('Secundaria')).toBeChecked()
+
+  await page.reload()
+  await expect(secondaryForm.locator('#wallet-wallet-secondary-label')).toHaveValue('Reserva QA')
+  await expect(secondaryForm.getByLabel('Principal')).toBeChecked()
+  await expect(mainForm.getByLabel('Secundaria')).toBeChecked()
 })
 
 test('favoritos fazem rollback quando a API falha e recuperam na nova tentativa', async ({ page }) => {
@@ -119,6 +155,78 @@ test('responsividade das rotas autenticadas', async ({ page }) => {
   for (const [route, heading] of routes) {
     await page.goto(route)
     // Espera a rota carregar para que uma navegacao pendente nao interrompa a proxima.
+    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  }
+})
+
+test('nft.updated durante a revisao do checkout exige nova confirmacao', async ({ page }) => {
+  await addCartItem(page, nfts.emerald)
+  await page.goto('/pagamento')
+  await reviewCheckout(page)
+  const confirm = page.getByRole('button', { name: /Confirmar e pagar/i })
+  await expect(confirm).toBeEnabled()
+
+  await page.evaluate(() => {
+    window.__kurioRealtimeOutcomes = []
+    window.addEventListener('kurio:realtime', (event) => {
+      window.__kurioRealtimeOutcomes.push((event as CustomEvent<{ outcome: string }>).detail.outcome)
+    })
+  })
+  await patchNft(page, nfts.emerald, { priceEth: '9.990' })
+  await expect.poll(() => page.evaluate(() => window.__kurioRealtimeOutcomes)).toContain('applied')
+  await expect(page.getByText(/A cotacao mudou desde a sua revisao/i)).toBeVisible()
+  await expect(confirm).toBeDisabled()
+
+  await page.getByRole('button', { name: /Revisar novamente/i }).click()
+  await page.getByRole('button', { name: /Aceitar valores atuais/i }).click()
+  await page.getByRole('button', { name: /Revisar pedido/i }).click()
+  await expect(page.getByRole('heading', { name: /Revise seu pedido/i })).toBeVisible()
+  await expect(page.getByText(/9\.990 ETH/).first()).toBeVisible()
+  await confirm.click()
+
+  await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText(/1 x 9\.990 ETH/)).toBeVisible()
+})
+
+test('pedido pendente sobrevive a queda de conexao e refresh ate a confirmacao', async ({ page }) => {
+  await page.clock.install()
+  await addCartItem(page, nfts.emerald)
+  await setScenario(page, { paymentDelayMs: 60_000 })
+  await page.goto('/pagamento')
+  await reviewCheckout(page)
+  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+
+  const pending = page.getByRole('heading', { name: /Aguardando confirmacao/i })
+  await expect(pending).toBeVisible()
+  await expect(page).toHaveURL(/pedido=GM-2049/)
+
+  await postMock(page, '/api/mock/realtime/disconnect')
+  await page.reload()
+  await expect(pending).toBeVisible()
+
+  // O relogio controlado liquida o pagamento sem esperar 60 s reais.
+  await page.clock.fastForward(60_000)
+  await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible()
+  await expect(page).toHaveURL(/pedido=GM-2049/)
+  const duplicate = await browserApi(page, '/api/orders/GM-2050')
+  expect(duplicate.status).toBe(404)
+})
+
+test('rotas principais em tablet (768px) nao geram overflow horizontal', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium-desktop', 'A largura de tablet e definida no proprio teste.')
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await addCartItem(page, nfts.emerald)
+  const routes = [
+    ['/', /Seja dono do futuro/],
+    [`/nft/${nfts.emerald}`, /Emerald Ape/],
+    ['/carrinho', /Resumo da carteira/],
+    ['/pagamento', /Perfil do colecionador/],
+    ['/perfil', /Dados da conta/],
+    ['/carteiras', /Gerencie enderecos/],
+  ] as const
+  for (const [route, heading] of routes) {
+    await page.goto(route)
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
     await expectNoHorizontalOverflow(page)
   }

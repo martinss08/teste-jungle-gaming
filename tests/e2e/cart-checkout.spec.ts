@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addCartItem, applyCoupon, loginByApi, nfts, patchNft, resetMock, setScenario } from './helpers'
+import { addCartItem, applyCoupon, browserApi, loginByApi, loginByUi, nfts, patchNft, resetMock, reviewCheckout, setScenario } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
@@ -22,21 +22,44 @@ test('carrinho altera quantidade, remove item e aplica cupom', async ({ page }) 
   await expect(page.getByRole('status').filter({ hasText: 'Item removido do carrinho.' })).toBeVisible()
 })
 
-test('cupom invalido mostra erro e persistencia sobrevive ao refresh/login', async ({ page }) => {
+test('cupom invalido e expirado mostram erro e o carrinho sobrevive ao refresh', async ({ page }) => {
   await addCartItem(page, nfts.emerald)
   await page.goto('/carrinho')
-  await page.locator('#coupon:visible, #coupon-mobile:visible').fill('INVALIDO')
-  await page.locator('button:visible', { hasText: /Aplicar/i }).click()
-  await expect(page.getByRole('alert')).toContainText(/cupom|codigo/i)
+  const coupon = page.locator('#coupon:visible, #coupon-mobile:visible')
+  const apply = page.locator('button:visible', { hasText: /Aplicar/i })
+
+  await coupon.fill('INVALIDO')
+  await apply.click()
+  await expect(page.getByRole('alert')).toContainText(/Cupom invalido/i)
+
+  await coupon.fill('EXPIRADO')
+  await apply.click()
+  await expect(page.getByRole('alert')).toContainText(/Cupom expirado/i)
+  await expect(page.locator('span:visible', { hasText: /Cupom .* aplicado/i })).toHaveCount(0)
 
   await page.reload()
   await expect(page.locator('h2:visible', { hasText: /Emerald Ape/i })).toBeVisible()
+})
 
+test('itens do visitante sao preservados e mesclados ao entrar', async ({ page }) => {
   await loginByApi(page)
-  await page.goto('/carrinho')
   await addCartItem(page, nfts.emerald)
+  await browserApi(page, '/api/auth/logout', { method: 'POST' })
+  await page.evaluate(() => localStorage.removeItem('kurio-session-token'))
+
+  await addCartItem(page, nfts.sage)
   await page.goto('/carrinho')
+  await expect(page.locator('h2:visible', { hasText: /Sage Hood/i })).toBeVisible()
+  await expect(page.locator('h2:visible', { hasText: /Emerald Ape/i })).toHaveCount(0)
+
+  await page.goto('/login?redirect=/carrinho')
+  await loginByUi(page)
+  await expect(page).toHaveURL(/\/carrinho/)
   await expect(page.locator('h2:visible', { hasText: /Emerald Ape/i })).toBeVisible()
+  await expect(page.locator('h2:visible', { hasText: /Sage Hood/i })).toBeVisible()
+
+  await page.reload()
+  await expect(page.locator('h2:visible', { hasText: /Sage Hood/i })).toBeVisible()
 })
 
 test('compra completa ate recibo confirmado', async ({ page }) => {
@@ -50,9 +73,7 @@ test('compra completa ate recibo confirmado', async ({ page }) => {
   await page.getByRole('button', { name: /Conectar e finalizar/i }).click()
   await expect(page).toHaveURL(/\/pagamento/)
 
-  await page.getByRole('button', { name: /Conectar carteira/i }).click()
-  await expect(page.getByText(/Conectada via/i)).toBeVisible()
-  await page.getByRole('button', { name: /Revisar pedido/i }).click()
+  await reviewCheckout(page)
   await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
 
   await expect(page).toHaveURL(/\/confirmacao/)
@@ -65,8 +86,7 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await addCartItem(page, nfts.emerald)
   await setScenario(page, { paymentResult: 'recusado', paymentDelayMs: 100 })
   await page.goto('/pagamento')
-  await page.getByRole('button', { name: /Conectar carteira/i }).click()
-  await page.getByRole('button', { name: /Revisar pedido/i }).click()
+  await reviewCheckout(page)
   await page.getByRole('button', { name: /Confirmar e pagar/i }).dblclick()
   await expect(page.getByRole('heading', { name: /Pagamento recusado/i })).toBeVisible({ timeout: 10_000 })
   // O primeiro pedido apos o reset e GM-2049; um pedido duplicado apareceria como GM-2050.
@@ -79,11 +99,33 @@ test('pagamento recusado, clique repetido e timeout recuperam estado correto', a
   await addCartItem(page, nfts.emerald)
   await setScenario(page, { timeoutNextOrder: true, paymentDelayMs: 100 })
   await page.goto('/pagamento')
-  await page.getByRole('button', { name: /Conectar carteira/i }).click()
-  await page.getByRole('button', { name: /Revisar pedido/i }).click()
+  await reviewCheckout(page)
   await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
   await expect(page).toHaveURL(/pedido=GM-2049/)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
+})
+
+test('refresh durante o envio do pedido retoma a mesma tentativa sem duplicar', async ({ page }) => {
+  await loginByApi(page)
+  await addCartItem(page, nfts.emerald)
+  await setScenario(page, { paymentDelayMs: 100 })
+  await page.goto('/pagamento')
+  await reviewCheckout(page)
+
+  // Sem conexao o envio fica pendente; a tentativa confirmada ja esta salva com a chave de idempotencia.
+  await setScenario(page, { offline: true })
+  await page.getByRole('button', { name: /Confirmar e pagar/i }).click()
+  await expect(page.getByRole('button', { name: /Enviando pedido/i })).toBeVisible()
+
+  await setScenario(page, { offline: false })
+  await page.reload()
+  await expect(page).toHaveURL(/pedido=GM-2049/)
+  await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
+
+  const duplicate = await browserApi(page, '/api/orders/GM-2050')
+  expect(duplicate.status).toBe(404)
+  await page.goto('/carrinho')
+  await expect(page.getByText(/Seu carrinho esta vazio/i).filter({ visible: true })).toBeVisible()
 })
 
 test('mudanca de preco/disponibilidade bloqueia checkout ate revisar carrinho', async ({ page }) => {

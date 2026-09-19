@@ -178,3 +178,26 @@ export async function expectNoHorizontalOverflow(page: Page) {
 export async function expectToastOrStatus(page: Page, text: RegExp | string) {
   await expect(page.getByRole('status').filter({ hasText: text })).toBeVisible()
 }
+
+export async function loginByUi(page: Page, credentials: { email: string; password: string } = user) {
+  await page.locator('input[name="email"]').fill(credentials.email)
+  await page.locator('input[name="password"]').fill(credentials.password)
+  await page.locator('form').getByRole('button', { name: /^Entrar$/i }).click()
+}
+
+export async function logoutByUi(page: Page) {
+  if ((page.viewportSize()?.width ?? 0) < 768) {
+    await page.getByRole('button', { name: 'Conta' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Sair' }).click()
+  } else {
+    await page.getByRole('banner').getByRole('button', { name: 'Sair' }).click()
+  }
+}
+
+// No /pagamento: conecta a carteira principal e avanca para a revisao do pedido.
+export async function reviewCheckout(page: Page) {
+  await page.getByRole('button', { name: /Conectar carteira/i }).click()
+  await expect(page.getByText(/Conectada via/i)).toBeVisible()
+  await page.getByRole('button', { name: /Revisar pedido/i }).click()
+  await expect(page.getByRole('heading', { name: /Revise seu pedido/i })).toBeVisible()
+}
