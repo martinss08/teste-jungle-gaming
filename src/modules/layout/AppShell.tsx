@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Heart, Home, Instagram, Linkedin, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
+import { Github, Heart, Home, Instagram, Linkedin, Mail, Search, ShoppingCart, UserRound, X, Youtube } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { buttonVariants } from '../../components/ui/buttonVariants'
@@ -276,52 +276,108 @@ export function AppShell() {
       )}
 
       <footer className="bg-[#160b08] pb-[112px] md:pb-0">
-        <div className="mx-auto max-w-[1440px] px-6 pb-10 md:px-4 sm:px-6 lg:px-[120px]">
-          <div className="grid gap-6 border-t border-border bg-[#3a1d09] px-7 py-7 text-sm font-bold text-[#b89c85] md:grid-cols-4">
-            <span className="font-display uppercase tracking-[0.14em] text-foreground">Kurio</span>
-            <span>Feito para colecionadores, criadores e cultura</span>
-            <span>contato@email.com</span>
-            <span>+55 11 4002 8922</span>
-          </div>
-
-          <div className="grid gap-8 bg-card px-7 py-10 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ['Meu perfil', 'Meu perfil', 'Minha colecao', 'Atividade', 'Estudio do criador', 'Lista de interesse'],
-              ['Central de ajuda', 'Central de ajuda', 'Como comprar NFTs', 'Carteira e seguranca', 'Politica do mercado', 'Denunciar item'],
-              ['Colecoes', 'Arte digital', 'Fotografia', 'Musica', 'Arte 3D', 'Utilidade'],
-            ].map(([title, ...items]) => (
-            <div key={title}>
-              <h2 className="mb-4 font-display text-base font-bold">{title}</h2>
-              <ul className="grid gap-2 text-sm font-bold text-[#9b826d]">
-                {items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+        <div className="md:hidden">
+          <div className="border-t border-border bg-[#3a1d09] px-6 py-6">
+            <span className="font-display text-sm font-bold uppercase tracking-[0.14em] text-foreground">Kurio</span>
+            <p className="mt-3 text-sm font-bold leading-6 text-[#b89c85]">
+              Feito para colecionadores, criadores e cultura.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <a href="mailto:victorcostamartins0@gmail.com" className="grid size-8 place-items-center rounded-sm border border-primary text-primary" aria-label="Enviar e-mail para João Victor Costa Martins">
+                <Mail size={15} />
+              </a>
+              <a href="https://github.com/martinss08" target="_blank" rel="noreferrer noopener" className="grid size-8 place-items-center rounded-sm border border-primary text-primary" aria-label="GitHub de João Victor Costa Martins">
+                <Github size={15} />
+              </a>
+              <a href="https://www.linkedin.com/in/jo%C3%A3o-victor-costa-martins-59b55b311/" target="_blank" rel="noreferrer noopener" className="grid size-8 place-items-center rounded-sm border border-primary text-primary" aria-label="LinkedIn de João Victor Costa Martins">
+                <Linkedin size={15} />
+              </a>
             </div>
-            ))}
-
-            <div>
-              <h2 className="mb-4 font-display text-base font-bold">Redes sociais</h2>
-              <div className="flex gap-2">
-                {[Instagram, Search, Linkedin, Youtube].map((Icon, index) => (
-                  <span key={index} className="grid size-8 place-items-center rounded-sm border border-primary text-primary">
-                    <Icon size={16} />
-                  </span>
-                ))}
-              </div>
-              <h2 className="mb-4 mt-8 font-display text-base font-bold">Carteiras compativeis</h2>
-              <div className="flex flex-wrap gap-2 text-[0.62rem] font-bold uppercase text-primary">
-                {['Metamask', 'WalletConnect', 'Coinbase'].map((wallet) => (
-                  <span key={wallet} className="rounded-sm bg-[#3a1d09] px-2 py-1">
-                    {wallet}
-                  </span>
-                ))}
-              </div>
+            <div className="mt-5 grid gap-2 text-xs font-bold text-[#9b826d]">
+              <a href="tel:+5598970262878" className="hover:text-primarySoft">+55 98 97026-2878</a>
+              <a href="mailto:victorcostamartins0@gmail.com" className="hover:text-primarySoft">victorcostamartins0@gmail.com</a>
+              <span>Marabá-PA</span>
             </div>
           </div>
+          <div className="bg-[#160b08] px-6 py-5 text-center text-xs font-bold text-foreground/45">
+            2026 Kurio. Todos os direitos reservados.
+          </div>
+        </div>
 
-          <div className="bg-[#160b08] px-4 py-5 text-center text-xs font-bold text-foreground/45">
-            2026 Kurio. Propriedade digital para todos.
+        <div className="hidden md:block">
+          <div className="mx-auto max-w-[1216px] px-6 py-16 lg:px-0">
+            <div className="grid gap-16 lg:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="grid size-8 place-items-center rounded-md bg-primary font-display text-base font-bold text-[#160b08]">K</span>
+                  <span className="font-display text-lg font-bold text-foreground">
+                    Kurio
+                  </span>
+                </div>
+                <p className="mt-5 max-w-[250px] text-sm font-bold leading-6 text-[#8d8078]">
+                  Feito para colecionadores, criadores e cultura.
+                </p>
+                <div className="mt-6 flex gap-3">
+                  <a
+                    href="mailto:victorcostamartins0@gmail.com"
+                    className="grid size-9 place-items-center rounded-lg bg-[#2a1812] text-[#b89c85] transition hover:text-primary"
+                    aria-label="Enviar e-mail para João Victor Costa Martins"
+                  >
+                    <Mail size={17} />
+                  </a>
+                  <a
+                    href="https://github.com/martinss08"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="grid size-9 place-items-center rounded-lg bg-[#2a1812] text-[#b89c85] transition hover:text-primary"
+                    aria-label="GitHub de João Victor Costa Martins"
+                  >
+                    <Github size={17} />
+                  </a>
+                  <a
+                    href="https://www.linkedin.com/in/jo%C3%A3o-victor-costa-martins-59b55b311/"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="grid size-9 place-items-center rounded-lg bg-[#2a1812] text-[#b89c85] transition hover:text-primary"
+                    aria-label="LinkedIn de João Victor Costa Martins"
+                  >
+                    <Linkedin size={17} />
+                  </a>
+                </div>
+              </div>
+
+              {[
+                ['Produto', 'Mercado', 'Criadores', 'Aprenda', 'Cupons'],
+                ['Empresa', 'Sobre a Kurio', 'Blog', 'Suporte', 'Contato'],
+              ].map(([title, ...items]) => (
+                <div key={title}>
+                  <h2 className="font-display text-sm font-bold text-foreground">{title}</h2>
+                  <ul className="mt-5 grid gap-4 text-sm font-bold text-[#8d8078]">
+                    {items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              <div>
+                <h2 className="font-display text-sm font-bold text-foreground">Contato</h2>
+                <ul className="mt-5 grid gap-4 text-sm font-bold text-[#8d8078]">
+                  <li><a href="mailto:victorcostamartins0@gmail.com" className="hover:text-primarySoft">victorcostamartins0@gmail.com</a></li>
+                  <li><a href="tel:+5598970262878" className="hover:text-primarySoft">+55 98 97026-2878</a></li>
+                  <li>Marabá-PA</li>
+                  <li>
+                    <a href="https://www.linkedin.com/in/jo%C3%A3o-victor-costa-martins-59b55b311/" target="_blank" rel="noreferrer noopener" className="text-primarySoft hover:text-primary">
+                      LinkedIn
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-14 border-t border-border pt-8 text-center text-xs font-bold text-foreground/45">
+              <span>2026 Kurio. Todos os direitos reservados.</span>
+            </div>
           </div>
         </div>
       </footer>

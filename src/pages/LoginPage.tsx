@@ -65,7 +65,7 @@ export function AuthModalPage({
     >
       <button
         type="button"
-        className="absolute right-4 top-4 grid size-8 place-items-center text-[#dc8f4c] opacity-0 transition hover:text-primary focus:opacity-100 md:opacity-100"
+        className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full border border-border bg-[#1d100b] text-[#dc8f4c] transition hover:text-primary"
         aria-label="Fechar"
         onClick={close}
       >

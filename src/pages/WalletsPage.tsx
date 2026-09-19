@@ -131,7 +131,7 @@ function WalletForm({
   const describedBy = (field: keyof WalletRequest) => (errors[field] ? `${prefix}-${field}-error` : undefined)
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="mt-8 grid gap-x-7 gap-y-6 md:grid-cols-2">
+    <form noValidate onSubmit={handleSubmit} className="mt-5 grid gap-x-7 gap-y-4 md:mt-8 md:grid-cols-2 md:gap-y-6">
       <DisplayInput id={`${prefix}-display-name`} label="Nome de exibicao" value={session?.user.name} />
       <div className="space-y-2">
         <WalletLabel htmlFor={`${prefix}-label`}>Apelido da carteira</WalletLabel>
@@ -269,8 +269,8 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       {isCreating && (
-        <section id="new-wallet" className="mb-10 border-b border-border pb-8">
-          <h2 className="font-display text-lg font-bold">Nova carteira</h2>
+          <section id="new-wallet" className="mb-8 rounded-2xl border border-border bg-card/70 p-4 md:mb-10 md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:pb-8">
+            <h2 className="font-display text-lg font-bold">Nova carteira</h2>
           <p className="mt-1 text-sm text-foreground/55">
             {wallets.length ? 'Cadastre como principal para substituir a atual, ou como secundaria.' : 'A primeira carteira sera a principal.'}
           </p>
@@ -299,12 +299,16 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
           </Card>
         )
       ) : (
-        <div>
-          <section className="border-b border-border pb-8">
+        <div className="space-y-6 md:space-y-0">
+          <section className="rounded-2xl border border-border bg-card/70 p-4 md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:pb-8">
+            <div className="flex items-center justify-between gap-3 md:hidden">
+              <h2 className="font-display text-base font-bold">Carteira principal cadastrada</h2>
+              <span className="rounded-full border border-primary/50 px-2 py-1 text-[0.68rem] font-bold uppercase text-primarySoft">Principal</span>
+            </div>
             <WalletForm key={primaryWallet.id} userId={userId} wallet={primaryWallet} defaultKind="principal" onSaved={setSavedMessage} />
           </section>
 
-          <section className="mt-8">
+          <section className="rounded-2xl border border-border bg-[#1d100b] p-4 md:mt-8 md:rounded-none md:border-0 md:bg-transparent md:p-0">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
                 <h2 className="font-display text-lg font-bold">Carteira secundaria</h2>
@@ -312,9 +316,9 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
                   {secondaryWallets.length ? 'Use uma carteira secundaria como alternativa de pagamento.' : 'Voce ainda nao adicionou uma carteira secundaria.'}
                 </p>
               </div>
-              <div className="flex items-center gap-2 font-mono text-sm">
-                <span className="size-4 rounded-full border-2 border-primary" aria-hidden="true" />
-                <span>Igual à carteira principal</span>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 p-3 font-mono text-sm md:rounded-none md:border-0 md:bg-transparent md:p-0">
+                <span className="size-4 shrink-0 rounded-full border-2 border-primary" aria-hidden="true" />
+                <span className="min-w-0 flex-1">Igual à carteira principal</span>
                 <button
                   type="button"
                   className={cn('font-display font-bold text-primarySoft hover:text-primary', isCreating && 'opacity-60')}
@@ -325,7 +329,7 @@ export function WalletsPanel({ embedded = false }: { embedded?: boolean }) {
               </div>
             </div>
             {secondaryWallets.map((wallet) => (
-              <div key={wallet.id} className="mt-6 border-t border-border pt-6">
+              <div key={wallet.id} className="mt-5 rounded-2xl border border-border bg-card/70 p-4 md:mt-6 md:rounded-none md:border-0 md:border-t md:bg-transparent md:p-0 md:pt-6">
                 <WalletForm key={`${wallet.id}-${wallet.kind}`} userId={userId} wallet={wallet} defaultKind={wallet.kind} onSaved={setSavedMessage} />
               </div>
             ))}

@@ -2,20 +2,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import {
   AlertTriangle,
+  ArrowLeft,
   Download,
   EyeOff,
   Heart,
   ImageIcon,
   LogOut,
   MapPin,
+  Menu,
   ShoppingCart,
   Tag,
   UserRound,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { type ChangeEvent, type FormEvent, type ReactNode, useRef, useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Dialog } from '../components/ui/Dialog'
 import { Skeleton } from '../components/ui/Skeleton'
 import type { OwnedNft, Profile } from '../contracts/api'
 import { coupons } from '../data/coupons'
@@ -45,6 +49,15 @@ const sectionByHash: Record<string, ProfileSection> = {
 const emptyPasswordForm: PasswordForm = { currentPassword: '', newPassword: '', confirmPassword: '' }
 const fieldClass =
   'h-10 w-full rounded-sm border border-border bg-transparent px-3 font-mono text-sm text-foreground outline-none placeholder:text-[#9f7a55] focus:border-primary aria-[invalid=true]:border-red-400'
+const profileNavItems: Array<{ label: string; icon: LucideIcon; section: ProfileSection }> = [
+  { label: 'Dados do perfil', icon: UserRound, section: 'profile' },
+  { label: 'Carteiras', icon: MapPin, section: 'wallets' },
+  { label: 'Minha colecao', icon: ShoppingCart, section: 'collection' },
+  { label: 'Lista de interesse', icon: Heart, section: 'wishlist' },
+  { label: 'Cupons', icon: Tag, section: 'coupons' },
+  { label: 'Arquivos baixados', icon: Download, section: 'downloads' },
+  { label: 'Suporte', icon: AlertTriangle, section: 'support' },
+]
 
 function validateProfileForm(form: ProfileForm): Errors<ProfileForm> {
   const errors: Errors<ProfileForm> = {}
@@ -96,21 +109,11 @@ function ProfileSidebar({
   onSectionChange: (section: ProfileSection) => void
   onLogout: () => void
 }) {
-  const items: Array<{ label: string; icon: LucideIcon; section?: ProfileSection }> = [
-    { label: 'Dados do perfil', icon: UserRound, section: 'profile' },
-    { label: 'Carteiras', icon: MapPin, section: 'wallets' },
-    { label: 'Minha colecao', icon: ShoppingCart, section: 'collection' },
-    { label: 'Lista de interesse', icon: Heart, section: 'wishlist' },
-    { label: 'Cupons', icon: Tag, section: 'coupons' },
-    { label: 'Arquivos baixados', icon: Download, section: 'downloads' },
-    { label: 'Suporte', icon: AlertTriangle, section: 'support' },
-  ]
-
   return (
     <aside className="self-start bg-card">
       <h2 className="px-3 pb-3 pt-5 font-display text-xl font-bold">Meu perfil</h2>
       <nav aria-label="Menu do perfil" className="pb-3">
-        {items.map((item) => {
+        {profileNavItems.map((item) => {
           const Icon = item.icon
           const isActive = item.section === activeSection
           const className = cn(
@@ -123,18 +126,10 @@ function ProfileSidebar({
               <span>{item.label}</span>
             </>
           )
-          if (item.section) {
-            const section = item.section
-            return (
-              <button key={item.label} type="button" className={className} onClick={() => onSectionChange(section)}>
-                {content}
-              </button>
-            )
-          }
           return (
-            <span key={item.label} className={cn(className, 'cursor-default')}>
+            <button key={item.label} type="button" className={className} onClick={() => onSectionChange(item.section)}>
               {content}
-            </span>
+            </button>
           )
         })}
       </nav>
@@ -485,10 +480,10 @@ function WishlistPanel() {
       )}
 
       {favorites.isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
-          <Skeleton className="h-[300px] rounded-sm" />
-          <Skeleton className="h-[300px] rounded-sm" />
-          <Skeleton className="h-[300px] rounded-sm" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+          <Skeleton className="h-[210px] rounded-sm md:h-[300px]" />
+          <Skeleton className="h-[210px] rounded-sm md:h-[300px]" />
+          <Skeleton className="hidden h-[300px] rounded-sm xl:block" />
         </div>
       ) : favorites.isError ? (
         <Card className="p-6 text-center">
@@ -501,18 +496,18 @@ function WishlistPanel() {
           <p className="mt-2 text-sm text-foreground/55">Os itens favoritados no catalogo aparecem aqui.</p>
         </Card>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-3">
           {items.map((nft) => (
-            <article key={nft.id} className="min-w-0 bg-card p-5">
+            <article key={nft.id} className="min-w-0 bg-card p-2 md:p-5">
               <Link to="/nft/$nftId" params={{ nftId: nft.id }} className="group block">
-                <div className="aspect-square overflow-hidden rounded-md bg-[#efe7d2]">
+                <div className="aspect-square overflow-hidden rounded-[14px] bg-[#efe7d2] md:rounded-md">
                   <img src={nft.hero} alt={nft.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
                 </div>
-                <h2 className="mt-3 truncate font-display text-base font-bold text-[#d3c2b3]">{nft.title}</h2>
-                <p className="mt-1 truncate text-sm text-foreground/55">{nft.creator}</p>
+                <h2 className="mt-2 truncate font-display text-sm font-bold text-[#d3c2b3] md:mt-3 md:text-base">{nft.title}</h2>
+                <p className="mt-1 truncate text-xs text-foreground/55 md:text-sm">{nft.creator}</p>
               </Link>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="font-display text-lg font-bold text-primarySoft">{formatEth(nft.priceEth)}</p>
+              <div className="mt-2 flex items-center justify-between gap-2 md:mt-3 md:gap-3">
+                <p className="truncate font-display text-sm font-bold text-primarySoft md:text-lg">{formatEth(nft.priceEth)}</p>
                 <Button
                   type="button"
                   variant="ghost"
@@ -549,10 +544,10 @@ function CollectionPanel({ userId }: { userId: string }) {
       </div>
 
       {collectionQuery.isPending ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
-          <Skeleton className="h-[330px] rounded-sm" />
-          <Skeleton className="h-[330px] rounded-sm" />
-          <Skeleton className="h-[330px] rounded-sm" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-3" aria-busy="true">
+          <Skeleton className="h-[230px] rounded-sm md:h-[330px]" />
+          <Skeleton className="h-[230px] rounded-sm md:h-[330px]" />
+          <Skeleton className="hidden h-[330px] rounded-sm xl:block" />
         </div>
       ) : collectionQuery.isError ? (
         <Card className="p-6 text-center">
@@ -565,16 +560,16 @@ function CollectionPanel({ userId }: { userId: string }) {
           <p className="mt-2 text-sm text-foreground/55">Quando uma compra for confirmada, ela aparece aqui.</p>
         </Card>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-3">
           {items.map((item) => (
-            <article key={`${item.orderId}-${item.nftId}-${item.edition}`} className="min-w-0 bg-card p-5">
+            <article key={`${item.orderId}-${item.nftId}-${item.edition}`} className="min-w-0 bg-card p-2 md:p-5">
               <Link to="/nft/$nftId" params={{ nftId: item.nftId }} className="group block">
-                <div className="aspect-square overflow-hidden rounded-md bg-[#efe7d2]">
+                <div className="aspect-square overflow-hidden rounded-[14px] bg-[#efe7d2] md:rounded-md">
                   <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
                 </div>
-                <h2 className="mt-3 truncate font-display text-base font-bold text-[#d3c2b3]">{item.title}</h2>
+                <h2 className="mt-2 truncate font-display text-sm font-bold text-[#d3c2b3] md:mt-3 md:text-base">{item.title}</h2>
               </Link>
-              <dl className="mt-3 grid gap-2 border-t border-border pt-3 font-mono text-xs text-[#caa677]">
+              <dl className="mt-2 grid gap-1.5 border-t border-border pt-2 font-mono text-[0.68rem] text-[#caa677] md:mt-3 md:gap-2 md:pt-3 md:text-xs">
                 <div className="flex justify-between gap-3">
                   <dt>Edicao</dt>
                   <dd className="text-right text-foreground">{item.edition}</dd>
@@ -587,7 +582,7 @@ function CollectionPanel({ userId }: { userId: string }) {
                   <dt>Carteira</dt>
                   <dd className="truncate text-right text-foreground" title={item.walletAddress}>{item.walletLabel}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
+                <div className="hidden justify-between gap-3 md:flex">
                   <dt>Compra</dt>
                   <dd className="text-right text-foreground">{new Date(item.purchasedAt).toLocaleDateString('pt-BR')}</dd>
                 </div>
@@ -596,7 +591,7 @@ function CollectionPanel({ userId }: { userId: string }) {
                 href={item.explorerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-4 inline-flex text-sm font-bold text-primarySoft hover:text-primary"
+                className="mt-3 inline-flex text-xs font-bold text-primarySoft hover:text-primary md:mt-4 md:text-sm"
               >
                 Ver transacao
               </a>
@@ -692,9 +687,9 @@ function DownloadsPanel({ userId }: { userId: string }) {
       </div>
 
       {collectionQuery.isPending ? (
-        <div className="grid gap-5 lg:grid-cols-2" aria-busy="true">
-          <Skeleton className="h-[260px] rounded-sm" />
-          <Skeleton className="h-[260px] rounded-sm" />
+        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true">
+          <Skeleton className="h-[170px] rounded-sm md:h-[260px]" />
+          <Skeleton className="h-[170px] rounded-sm md:h-[260px]" />
         </div>
       ) : collectionQuery.isError ? (
         <Card className="p-6 text-center">
@@ -707,30 +702,30 @@ function DownloadsPanel({ userId }: { userId: string }) {
           <p className="mt-2 text-sm text-foreground/55">Depois de comprar um NFT, os arquivos dele aparecem aqui.</p>
         </Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
           {items.map((item) => (
-            <article key={`${item.orderId}-${item.nftId}-${item.edition}-downloads`} className="grid min-w-0 gap-4 bg-card p-5 sm:grid-cols-[108px_minmax(0,1fr)]">
-              <Link to="/nft/$nftId" params={{ nftId: item.nftId }} className="block overflow-hidden rounded-md bg-[#efe7d2]">
+            <article key={`${item.orderId}-${item.nftId}-${item.edition}-downloads`} className="grid min-w-0 grid-cols-[82px_minmax(0,1fr)] gap-3 bg-card p-3 md:gap-4 md:p-5 sm:grid-cols-[108px_minmax(0,1fr)]">
+              <Link to="/nft/$nftId" params={{ nftId: item.nftId }} className="block overflow-hidden rounded-[14px] bg-[#efe7d2] md:rounded-md">
                 <img src={item.imageUrl} alt={item.title} className="aspect-square h-full w-full object-cover" loading="lazy" />
               </Link>
               <div className="min-w-0">
-                <h2 className="truncate font-display text-base font-bold text-[#d3c2b3]">{item.title}</h2>
-                <p className="mt-1 font-mono text-xs text-[#caa677]">
+                <h2 className="truncate font-display text-sm font-bold text-[#d3c2b3] md:text-base">{item.title}</h2>
+                <p className="mt-1 truncate font-mono text-[0.68rem] text-[#caa677] md:text-xs">
                   {item.edition} · Pedido {item.orderId}
                 </p>
-                <div className="mt-4 grid gap-2">
+                <div className="mt-3 grid gap-2 md:mt-4">
                   {buildDownloadAssets(item).map((asset) => (
                     <a
                       key={asset.id}
                       href={asset.href}
                       download={asset.download}
-                      className="flex min-w-0 items-center justify-between gap-3 border border-border bg-[#170d0a] px-3 py-2 text-sm transition hover:border-primary/70 hover:bg-muted"
+                      className="flex min-w-0 items-center justify-between gap-2 border border-border bg-[#170d0a] px-2 py-1.5 text-xs transition hover:border-primary/70 hover:bg-muted md:gap-3 md:px-3 md:py-2 md:text-sm"
                     >
                       <span className="min-w-0">
                         <span className="block truncate font-bold">{asset.label}</span>
-                        <span className="block truncate text-xs text-foreground/55">{asset.detail}</span>
+                        <span className="hidden truncate text-xs text-foreground/55 md:block">{asset.detail}</span>
                       </span>
-                      <Download size={16} className="shrink-0 text-primarySoft" />
+                      <Download size={14} className="shrink-0 text-primarySoft md:size-4" />
                     </a>
                   ))}
                 </div>
@@ -774,7 +769,7 @@ function CouponsPanel() {
         <h1 id="coupons-title" className="mt-2 font-display text-lg font-bold">Descontos de compra</h1>
       </div>
 
-      <form noValidate onSubmit={handleSubmit} className="mb-6 flex flex-col gap-3 bg-card p-5 sm:flex-row sm:items-end">
+      <form noValidate onSubmit={handleSubmit} className="mb-5 flex flex-col gap-3 bg-card p-3 md:p-5 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
           <label htmlFor="coupon-code" className="font-mono text-sm tracking-[0.03em]">Adicionar cupom</label>
           <input
@@ -797,24 +792,24 @@ function CouponsPanel() {
         {message?.text}
       </p>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 md:gap-5">
         {coupons.map((coupon) => {
           const available = coupon.status === 'disponivel'
           const statusLabel = coupon.status === 'disponivel' ? 'Disponivel' : coupon.status === 'usado' ? 'Usado' : 'Expirado'
           return (
-            <article key={coupon.code} className={cn('border bg-card p-5', available ? 'border-primary/40' : 'border-border opacity-70')}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <article key={coupon.code} className={cn('border bg-card p-3 md:p-5', available ? 'border-primary/40' : 'border-border opacity-70')}>
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-primarySoft">{coupon.code}</p>
-                  <h2 className="mt-2 font-display text-base font-bold">{coupon.title}</h2>
+                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-[0.16em] text-primarySoft md:text-xs md:tracking-[0.18em]">{coupon.code}</p>
+                  <h2 className="mt-1 font-display text-sm font-bold md:mt-2 md:text-base">{coupon.title}</h2>
                 </div>
-                <span className={cn('rounded-full border px-2.5 py-1 text-xs font-bold', available ? 'border-primary/50 text-primarySoft' : 'border-border text-foreground/55')}>
+                <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[0.65rem] font-bold md:px-2.5 md:py-1 md:text-xs', available ? 'border-primary/50 text-primarySoft' : 'border-border text-foreground/55')}>
                   {statusLabel}
                 </span>
               </div>
-              <p className="mt-3 text-sm leading-6 text-foreground/60">{coupon.description}</p>
-              <p className="mt-3 font-display text-lg font-bold text-primarySoft">{coupon.percent}% OFF</p>
-              <p className="mt-4 font-mono text-xs text-[#caa677]">
+              <p className="mt-2 text-xs leading-5 text-foreground/60 md:mt-3 md:text-sm md:leading-6">{coupon.description}</p>
+              <p className="mt-2 font-display text-base font-bold text-primarySoft md:mt-3 md:text-lg">{coupon.percent}% OFF</p>
+              <p className="mt-3 font-mono text-[0.68rem] text-[#caa677] md:mt-4 md:text-xs">
                 Validade: {new Date(coupon.expiresAt).toLocaleDateString('pt-BR')}
               </p>
             </article>
@@ -971,6 +966,7 @@ export function ProfilePage() {
   const location = useLocation()
   const [activeSection, setActiveSection] = useState<ProfileSection>(() => sectionByHash[location.hash] ?? 'profile')
   const [syncedHash, setSyncedHash] = useState(location.hash)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const profileQuery = useQuery({
     queryKey: ['profile', userId],
     queryFn: getProfile,
@@ -983,9 +979,36 @@ export function ProfilePage() {
     const section = sectionByHash[location.hash]
     if (section) setActiveSection(section)
   }
+  const activeLabel = profileNavItems.find((item) => item.section === activeSection)?.label ?? 'Meu perfil'
+  const handleSectionChange = (section: ProfileSection) => {
+    setActiveSection(section)
+    setMobileMenuOpen(false)
+  }
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 pb-16 pt-8 font-mono sm:px-6 lg:px-[120px]">
+      <header className="mb-6 grid grid-cols-[44px_1fr_44px] items-center lg:hidden">
+        <button
+          type="button"
+          className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft"
+          aria-label="Voltar"
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeft size={19} />
+        </button>
+        <h1 className="text-center text-xl font-black tracking-[0.05em]">{activeLabel}</h1>
+        <button
+          type="button"
+          className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft"
+          aria-label="Abrir menu do perfil"
+          aria-haspopup="dialog"
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen(true)}
+        >
+          <Menu size={19} />
+        </button>
+      </header>
+
       {profileQuery.isPending ? (
         <div className="grid gap-7 lg:grid-cols-[310px_minmax(0,1fr)]" aria-busy="true">
           <Skeleton className="h-[406px] rounded-sm" />
@@ -1001,7 +1024,9 @@ export function ProfilePage() {
         </Card>
       ) : (
         <div className="grid gap-7 lg:grid-cols-[310px_minmax(0,1fr)]">
-          <ProfileSidebar activeSection={activeSection} onSectionChange={setActiveSection} onLogout={() => void logout()} />
+          <div className="hidden lg:block">
+            <ProfileSidebar activeSection={activeSection} onSectionChange={setActiveSection} onLogout={() => void logout()} />
+          </div>
           {activeSection === 'profile' ? (
             <ProfileEditor key={profile.userId} profile={profile} />
           ) : activeSection === 'wallets' ? (
@@ -1018,6 +1043,18 @@ export function ProfilePage() {
             <WishlistPanel />
           )}
         </div>
+      )}
+
+      {mobileMenuOpen && (
+        <Dialog labelledBy="profile-menu-title" placement="bottom" onClose={() => setMobileMenuOpen(false)} className="w-full rounded-t-[28px] bg-card px-6 pb-8 pt-6 font-mono">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 id="profile-menu-title" className="font-display text-lg font-bold">Meu perfil</h2>
+            <button type="button" className="grid size-9 place-items-center rounded-full border border-border text-primarySoft" aria-label="Fechar menu" onClick={() => setMobileMenuOpen(false)}>
+              <X size={18} />
+            </button>
+          </div>
+          <ProfileSidebar activeSection={activeSection} onSectionChange={handleSectionChange} onLogout={() => void logout()} />
+        </Dialog>
       )}
     </div>
   )

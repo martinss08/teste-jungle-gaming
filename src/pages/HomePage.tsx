@@ -681,18 +681,36 @@ function MobileHomePage({
       </div>
 
       <section className="mt-12 grid gap-5" aria-label="Mais formas de explorar">
-        <PromoTile
-          nft={featured[0]}
-          title="Lancamentos genesis de edicao limitada"
-          description="Colecione edicoes escassas diretamente dos criadores antes da revelacao publica."
-          search={{ ...defaultCatalogSearch, tag: 'lancamento' }}
-        />
-        <PromoTile
-          nft={featured[2]}
-          title="Arte digital selecionada e muito mais"
-          description="Explore novos artistas, colecoes verificadas e obras digitais que definem a cultura."
-          search={{ ...defaultCatalogSearch, category: 'Arte digital' }}
-        />
+        {[
+          {
+            nft: featured[0],
+            title: 'Lancamentos genesis',
+            description: 'Edicoes escassas direto dos criadores.',
+            search: { ...defaultCatalogSearch, tag: 'lancamento' },
+          },
+          {
+            nft: featured[2],
+            title: 'Arte digital selecionada',
+            description: 'Colecoes verificadas e obras em destaque.',
+            search: { ...defaultCatalogSearch, category: 'Arte digital' },
+          },
+        ].map((item) => (
+          <Link key={item.title} to="/" search={item.search} hash="catalogo" className="grid grid-cols-[92px_1fr] gap-4 rounded-[18px] bg-card p-3">
+            {item.nft ? (
+              <img src={item.nft.hero} alt={item.nft.title} className="aspect-square rounded-[14px] object-cover" loading="lazy" />
+            ) : (
+              <Skeleton className="aspect-square rounded-[14px]" />
+            )}
+            <div className="min-w-0">
+              <h3 className="font-display text-sm font-black leading-tight">{item.title}</h3>
+              <p className="mt-2 text-xs font-bold leading-5 text-[#9b826d]">{item.description}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-black uppercase text-primarySoft">
+                Explorar
+                <ArrowRight size={13} />
+              </span>
+            </div>
+          </Link>
+        ))}
       </section>
 
       <section className="mt-14">
