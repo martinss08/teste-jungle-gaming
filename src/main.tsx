@@ -5,6 +5,7 @@ import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tan
 import { AppShell } from './modules/layout/AppShell'
 import { CartProvider } from './modules/cart/CartProvider'
 import { AuthProvider } from './modules/auth/AuthProvider'
+import { RealtimeProvider } from './modules/realtime/RealtimeProvider'
 import { RequireAuth } from './modules/auth/RequireAuth'
 import { HomePage } from './pages/HomePage'
 import { NftDetailsPage } from './pages/NftDetailsPage'
@@ -159,9 +160,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CartProvider>
-          <RouterProvider router={router} />
-        </CartProvider>
+        <RealtimeProvider>
+          <CartProvider>
+            <RouterProvider router={router} />
+          </CartProvider>
+        </RealtimeProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

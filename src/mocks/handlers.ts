@@ -47,6 +47,7 @@ import {
   touchCart,
   updateNft,
 } from './state'
+import { dropConnections, realtimeHandler, replayLastEvent, replayStaleEvent } from './realtime'
 
 export const handlers = [
   http.all('/api/*', async ({ request }) => {
@@ -535,6 +536,23 @@ export const handlers = [
     if (!nft) return apiError('NOT_FOUND', 'NFT nao encontrado.', 404)
     return HttpResponse.json(nft)
   }),
+
+  // Controles do tempo real: duplicata, evento antigo e queda de conexao.
+  http.post('/api/mock/realtime/replay-last', () => {
+    const event = replayLastEvent()
+    return event ? HttpResponse.json(event) : apiError('NOT_FOUND', 'Nenhum evento publicado ainda.', 404)
+  }),
+
+  http.post('/api/mock/realtime/replay-stale', () => {
+    const event = replayStaleEvent()
+    return event ? HttpResponse.json(event) : apiError('NOT_FOUND', 'Nenhum evento anterior para este recurso.', 404)
+  }),
+
+  http.post('/api/mock/realtime/disconnect', () => {
+    return HttpResponse.json({ dropped: dropConnections() })
+  }),
+
+  realtimeHandler,
 ]
 
 function availabilityMessage(available: number, inCart: number) {

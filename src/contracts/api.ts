@@ -160,6 +160,8 @@ export type CollectorDetails = {
 // Recibo: snapshot imutavel gerado na criacao do pedido; nao muda se o catalogo mudar.
 export type Order = {
   id: string
+  // Incrementada a cada mudanca de status; usada para descartar eventos/respostas antigos.
+  version: number
   status: OrderStatus
   transaction: string
   explorerUrl: string
@@ -218,6 +220,30 @@ export type WalletRequest = Omit<Wallet, 'id' | 'status'>
 
 export type WalletListResponse = {
   items: Wallet[]
+}
+
+// Tempo real (Socket.IO). Todo evento tem identidade estavel (`id`, para descartar duplicatas),
+// o recurso afetado e a versao do recurso (para descartar eventos antigos).
+export type RealtimeResource = { type: 'nft' | 'order'; id: string }
+
+export type RealtimeEvent<TType extends string, TData> = {
+  id: string
+  type: TType
+  resource: RealtimeResource
+  version: number
+  occurredAt: string
+  // Usuario destinatario; ausente em eventos publicos (ex.: catalogo).
+  audience?: string
+  data: TData
+}
+
+export type NftUpdatedData = Pick<Nft, 'id' | 'priceEth' | 'previousPriceEth' | 'available'>
+export type NftUpdatedEvent = RealtimeEvent<'nft.updated', NftUpdatedData>
+export type OrderUpdatedEvent = RealtimeEvent<'order.updated', Order>
+
+export type ServerToClientEvents = {
+  'nft.updated': (event: NftUpdatedEvent) => void
+  'order.updated': (event: OrderUpdatedEvent) => void
 }
 
 export type MockNftChange = {

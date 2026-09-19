@@ -9,6 +9,8 @@ import { parseApiError } from '../lib/apiError'
 import { formatEth } from '../lib/eth'
 import { useAuth } from '../modules/auth/useAuth'
 import { getOrder } from '../modules/checkout/api'
+import { keepNewer } from '../modules/realtime/cache'
+import { useRealtime } from '../modules/realtime/useRealtime'
 
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 
@@ -102,13 +104,15 @@ export function ConfirmationPage() {
   const { pedido } = useSearch({ from: '/confirmacao' })
   const { session } = useAuth()
   const queryClient = useQueryClient()
+  const { status: realtimeStatus } = useRealtime()
+  const orderKey = ['order', session?.user.id, pedido]
   const orderQuery = useQuery({
-    queryKey: ['order', session?.user.id, pedido],
-    queryFn: () => getOrder(pedido),
+    queryKey: orderKey,
+    queryFn: async () => keepNewer(queryClient, orderKey, await getOrder(pedido)),
     enabled: Boolean(pedido && session),
     retry: false,
-    // Enquanto pendente, consulta periodicamente ate a liquidacao (tempo real chega na Fase 7).
-    refetchInterval: (query) => (query.state.data?.status === 'pendente' ? 1500 : false),
+    // Confirmacao/recusa chegam por `order.updated`; sem socket conectado, consulta periodica como fallback.
+    refetchInterval: (query) => (query.state.data?.status === 'pendente' && realtimeStatus !== 'connected' ? 3000 : false),
   })
   const order = orderQuery.data
   const status = order?.status
@@ -160,6 +164,11 @@ export function ConfirmationPage() {
           {content.icon}
           <h1 className="mt-4 font-display text-4xl font-bold">{content.title}</h1>
           <p className="mt-2 text-foreground/65">{content.description}</p>
+          {order.status === 'pendente' && (
+            <p className="mt-3 text-xs text-foreground/50">
+              {realtimeStatus === 'connected' ? 'Acompanhando em tempo real.' : 'Reconectando ao tempo real; consultando o pedido periodicamente.'}
+            </p>
+          )}
         </div>
         <Receipt order={order} />
         <div className="flex flex-col gap-3 border-t border-border p-6 sm:flex-row">

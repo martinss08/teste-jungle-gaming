@@ -46,6 +46,7 @@ type MockState = {
   idempotency: Record<string, IdempotencyRecord>
   orderMeta: Record<string, OrderMeta>
   nftChanges: Record<string, MockNftChange>
+  nftVersions: Record<string, number>
   quoteVersion: number
   scenario: MockScenario
 }
@@ -145,12 +146,29 @@ function createInitialState(): MockState {
     idempotency: {},
     orderMeta: {},
     nftChanges: {},
+    nftVersions: {},
     quoteVersion: 1,
     scenario: defaultScenario,
   }
 }
 
 let state = readState()
+
+// Mudancas relevantes para o tempo real. O servidor Socket.IO simulado assina estas
+// notificacoes (evita import circular entre o estado e o transporte).
+export type MockChange = { kind: 'nft'; nft: Nft } | { kind: 'order'; order: Order; userId: string }
+const changeListeners = new Set<(change: MockChange) => void>()
+
+export function onMockChange(listener: (change: MockChange) => void) {
+  changeListeners.add(listener)
+  return () => {
+    changeListeners.delete(listener)
+  }
+}
+
+function emitChange(change: MockChange) {
+  for (const listener of changeListeners) listener(change)
+}
 
 export function getState() {
   return state
@@ -181,10 +199,12 @@ export function getGuestCartKey() {
 export function getNft(nftId: string): Nft | undefined {
   const nft = nfts.find((item) => item.id === nftId)
   if (!nft) return undefined
+  const version = state.nftVersions[nftId] ?? 1
   const change = state.nftChanges[nftId]
-  if (!change) return nft
+  if (!change) return { ...nft, version }
   return {
     ...nft,
+    version,
     priceEth: change.priceEth ?? nft.priceEth,
     previousPriceEth: change.priceEth && change.priceEth !== nft.priceEth ? nft.priceEth : nft.previousPriceEth,
     available: change.available ?? nft.available,
@@ -195,13 +215,17 @@ export function listNfts(): Nft[] {
   return nfts.map((nft) => getNft(nft.id) ?? nft)
 }
 
+// Toda alteracao de preco/disponibilidade incrementa a versao do NFT e e publicada em tempo real.
 export function updateNft(nftId: string, change: MockNftChange) {
   const nft = nfts.find((item) => item.id === nftId)
   if (!nft) return undefined
   state.nftChanges[nftId] = { ...state.nftChanges[nftId], ...change }
+  state.nftVersions[nftId] = (state.nftVersions[nftId] ?? 1) + 1
   state.quoteVersion += 1
   persistState()
-  return getNft(nftId)
+  const updated = getNft(nftId)!
+  emitChange({ kind: 'nft', nft: updated })
+  return updated
 }
 
 export function hashPassword(password: string) {
@@ -237,9 +261,12 @@ export function removeSession(token: string) {
 }
 
 export function resolveSession(request: Request) {
-  if (state.scenario.forceSessionExpired) return null
   const header = request.headers.get('Authorization')
-  const token = header?.replace(/^Bearer\s+/i, '')
+  return resolveSessionToken(header?.replace(/^Bearer\s+/i, ''))
+}
+
+export function resolveSessionToken(token: string | null | undefined) {
+  if (state.scenario.forceSessionExpired) return null
   if (!token) return null
 
   const session = state.sessions[token]
@@ -378,6 +405,7 @@ export function createOrderFromQuote(userId: string, input: CreateOrderInput) {
   const createdAt = new Date().toISOString()
   const order: Order = {
     id: orderId,
+    version: 1,
     status: 'pendente',
     transaction: `0x${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}...${orderId.slice(-4).toLowerCase()}`,
     explorerUrl: `https://explorer.kurio.mock/tx/${orderId}`,
@@ -411,7 +439,22 @@ export function createOrderFromQuote(userId: string, input: CreateOrderInput) {
     finalStatus: state.scenario.paymentResult,
   }
   persistState()
+  scheduleSettlement(orderId)
   return settleOrder(orderId)
+}
+
+// Liquida no prazo simulado e publica `order.updated`; a leitura REST tambem liquida (fallback).
+function scheduleSettlement(orderId: string) {
+  const meta = state.orderMeta[orderId]
+  if (!meta || meta.finalStatus === 'pendente') return
+  setTimeout(() => settleOrder(orderId), Math.max(0, meta.resolveAt - Date.now()))
+}
+
+// Apos reload da pagina os timers se perdem: reagenda os pedidos ainda pendentes.
+export function resumePendingSettlements() {
+  for (const [orderId, order] of Object.entries(state.orders)) {
+    if (order.status === 'pendente') scheduleSettlement(orderId)
+  }
 }
 
 // Liquida o pagamento pendente quando o prazo simulado vence. Somente pedidos confirmados
@@ -431,14 +474,15 @@ function settleOrder(orderId: string) {
       const current = cart.items.find((line) => line.nftId === purchased.nftId)
       if (current) current.quantity -= purchased.quantity
       const nft = getNft(purchased.nftId)
-      if (nft) state.nftChanges[nft.id] = { ...state.nftChanges[nft.id], available: Math.max(0, nft.available - purchased.quantity) }
+      if (nft) updateNft(nft.id, { available: Math.max(0, nft.available - purchased.quantity) })
     }
     cart.items = cart.items.filter((line) => line.quantity > 0)
-    state.quoteVersion += 1
     touchCart(meta.userId)
   }
 
+  order.version = (order.version ?? 1) + 1
   persistState()
+  emitChange({ kind: 'order', order, userId: meta.userId })
   return order
 }
 

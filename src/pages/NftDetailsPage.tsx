@@ -13,6 +13,7 @@ import { addFavorite, getFavorites, getNft, removeFavorite } from '../modules/ca
 import { useAuth } from '../modules/auth/useAuth'
 import type { FavoriteResponse } from '../contracts/api'
 import { useProtectedAction } from '../modules/auth/useProtectedAction'
+import { keepNewer } from '../modules/realtime/cache'
 
 const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
 
@@ -111,7 +112,7 @@ export function NftDetailsPage() {
   const queryClient = useQueryClient()
   const nftQuery = useQuery({
     queryKey: ['nft', nftId],
-    queryFn: () => getNft(nftId),
+    queryFn: async () => keepNewer(queryClient, ['nft', nftId], await getNft(nftId)),
     retry: false,
   })
   const favoritesQuery = useQuery({

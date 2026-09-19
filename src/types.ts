@@ -15,6 +15,8 @@ export type Nft = {
   accent: string
   description: string
   traits: string[]
+  // Versao do recurso na API; eventos em tempo real so sao aplicados se forem mais novos.
+  version?: number
 }
 
 export type CartLine = {

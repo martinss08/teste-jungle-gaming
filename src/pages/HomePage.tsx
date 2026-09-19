@@ -59,8 +59,9 @@ function MarketCard({ nft, index }: { nft: Nft; index: number }) {
       </div>
       <h3 className="mt-3 truncate text-sm font-bold text-[#b39a81]">{nft.title.replace(/#\d+/, `#${code}`)}</h3>
       <p className="font-display text-base font-bold text-primarySoft">
-        {formatEth((Number(nft.priceEth) * (0.58 + index * 0.035)).toFixed(2))}
-        {index === 2 && <span className="ml-2 text-sm text-[#7b6554] line-through">2.29 ETH</span>}
+        {formatEth(nft.priceEth)}
+        {nft.previousPriceEth && <span className="ml-2 text-sm text-[#7b6554] line-through">{formatEth(nft.previousPriceEth)}</span>}
+        {nft.available < 1 && <span className="ml-2 text-xs uppercase text-red-200">Esgotado</span>}
       </p>
     </Link>
   )
@@ -439,7 +440,6 @@ function MobileHomePage({
 
 function MobileNftCard({ nft, index }: { nft: Nft; index: number }) {
   const names = ['Emerald Ape #042', 'Sage Nomad #009', 'Ivory Baron #088', 'Golden Beat #207', 'Cocoa Bloom #118', 'Mint Rover #601']
-  const prices = ['1.19', '1.69', '2.12', '1.98', '2.24', '0.72']
   const runProtected = useProtectedAction()
 
   return (
@@ -462,7 +462,10 @@ function MobileNftCard({ nft, index }: { nft: Nft; index: number }) {
         <img src={nft.hero} alt={names[index] ?? nft.title} className="aspect-square w-full rounded-[16px] object-cover" />
       </div>
       <h2 className="mt-3 text-sm font-bold">{names[index] ?? nft.title}</h2>
-      <p className="text-base font-black text-primarySoft">{prices[index] ?? nft.priceEth} ETH</p>
+      <p className="text-base font-black text-primarySoft">
+        {nft.priceEth} ETH
+        {nft.available < 1 && <span className="ml-2 text-xs uppercase text-red-200">Esgotado</span>}
+      </p>
     </Link>
   )
 }
