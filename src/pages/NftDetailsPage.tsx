@@ -268,7 +268,7 @@ function NftDetails({ nftId }: { nftId: string }) {
 
           <div className="order-1 self-start bg-card p-5 sm:order-2">
             <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#efe7d2] lg:size-[450px]">
-              <img src={currentImage} alt={`Arte principal do NFT ${nft.title}`} className="h-full w-full object-cover" />
+              <img src={currentImage} alt={`Arte principal do NFT ${nft.title}`} className="h-full w-full object-cover" fetchPriority="high" />
               <a href={currentImage} target="_blank" rel="noreferrer noopener" className="absolute right-0 top-0 grid size-9 place-items-center rounded-full bg-[#2a170f] text-foreground" aria-label="Abrir imagem em tamanho real">
                 <Search size={22} />
               </a>
@@ -289,7 +289,7 @@ function NftDetails({ nftId }: { nftId: string }) {
               <div className="font-display text-sm font-bold text-[#bca38d]">
                 {reviews ? (
                   <>
-                    <span aria-label={`Nota media ${reviews.averageRating} de 5`}><RatingStars rating={reviews.averageRating} /></span>
+                    <span role="img" aria-label={`Nota media ${reviews.averageRating} de 5`}><RatingStars rating={reviews.averageRating} /></span>
                     <span className="ml-2">{reviews.total} avaliacoes de colecionadores</span>
                   </>
                 ) : (
@@ -301,7 +301,7 @@ function NftDetails({ nftId }: { nftId: string }) {
 
           <div className="mt-4 max-w-[610px]">
             <h2 className="font-display text-base font-bold">Sobre este NFT:</h2>
-            <p className="mt-3 text-base font-bold leading-7 text-[#9b826d]">{nft.description}</p>
+            <p className="mt-3 text-base font-bold leading-7 text-[#b89c85]">{nft.description}</p>
 
             <h2 className="mt-4 font-display text-base font-bold">Edicao:</h2>
             <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -331,10 +331,19 @@ function NftDetails({ nftId }: { nftId: string }) {
             <PurchaseStatus purchase={purchase} className="mt-3" />
             {favorite.error && <p role="alert" className="mt-2 text-sm font-bold text-red-200">{favorite.error}</p>}
 
-            <dl className="mt-5 grid gap-3 font-display text-base font-bold text-[#9b826d]">
-              <div>Colecao: {nft.collection}</div>
-              <div>Criador: {nft.creator}</div>
-              <div>Atributos: {nft.traits.join(', ')}</div>
+            <dl className="mt-5 grid gap-3 font-display text-base font-bold text-[#b89c85]">
+              <div>
+                <dt className="inline text-foreground">Colecao: </dt>
+                <dd className="inline">{nft.collection}</dd>
+              </div>
+              <div>
+                <dt className="inline text-foreground">Criador: </dt>
+                <dd className="inline">{nft.creator}</dd>
+              </div>
+              <div>
+                <dt className="inline text-foreground">Atributos: </dt>
+                <dd className="inline">{nft.traits.join(', ')}</dd>
+              </div>
             </dl>
 
             <ShareLinks nft={nft} />
@@ -366,7 +375,7 @@ function NftDetails({ nftId }: { nftId: string }) {
         </div>
 
         {detailsTab === 'details' ? (
-          <dl className="mt-4 grid gap-5 text-base font-bold leading-7 text-[#9b826d]">
+          <dl className="mt-4 grid min-h-[280px] gap-5 text-base font-bold leading-7 text-[#b89c85]">
             <div>
               <dt className="font-display text-foreground">Descricao:</dt>
               <dd>{nft.description}</dd>
@@ -468,7 +477,7 @@ function MobileNftDetails({
         >
           <Heart size={18} className={favorite.isFavorite ? 'fill-current' : ''} />
         </button>
-        <img src={nft.hero} alt={nft.title} className="h-[395px] w-full rounded-[20px] object-cover" />
+        <img src={nft.hero} alt={nft.title} className="h-[395px] w-full rounded-[20px] object-cover" fetchPriority="high" />
       </div>
 
       <section className="-mt-[70px] relative z-10 rounded-t-[24px] bg-card px-6 pb-8 pt-8 shadow-[0_-20px_60px_rgba(0,0,0,0.35)]">
@@ -491,9 +500,18 @@ function MobileNftDetails({
         </div>
 
         <dl className="mt-4 grid gap-3 text-sm text-[#caa677]">
-          <div>Colecao: {nft.collection}</div>
-          <div>Criador: {nft.creator}</div>
-          <div>Atributos: {nft.traits.join(', ')}</div>
+          <div>
+            <dt className="inline text-foreground">Colecao: </dt>
+            <dd className="inline">{nft.collection}</dd>
+          </div>
+          <div>
+            <dt className="inline text-foreground">Criador: </dt>
+            <dd className="inline">{nft.creator}</dd>
+          </div>
+          <div>
+            <dt className="inline text-foreground">Atributos: </dt>
+            <dd className="inline">{nft.traits.join(', ')}</dd>
+          </div>
         </dl>
 
         <div className="mt-16 flex items-center justify-between">

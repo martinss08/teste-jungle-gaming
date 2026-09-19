@@ -23,20 +23,22 @@ export function NftCarousel({ title, items, isLoading }: { title: string; items:
           : visible.map((nft) => <NftCard key={nft.id} nft={nft} />)}
       </div>
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center gap-2">
+        <div className="mt-8 flex justify-center gap-3">
           {Array.from({ length: totalPages }, (_, pageIndex) => (
             <button
               key={pageIndex}
               type="button"
               className={
                 pageIndex === currentPage
-                  ? 'size-3 rounded-full border border-primary bg-primary'
-                  : 'size-3 rounded-full border border-primary bg-primary/20 transition hover:bg-primary/50'
+                  ? 'grid size-8 place-items-center rounded-full border border-primary'
+                  : 'grid size-8 place-items-center rounded-full border border-transparent transition hover:border-primary'
               }
               aria-label={`${title}: pagina ${pageIndex + 1}`}
               aria-current={pageIndex === currentPage ? 'true' : undefined}
               onClick={() => setPage(pageIndex)}
-            />
+            >
+              <span className={pageIndex === currentPage ? 'size-3 rounded-full bg-primary' : 'size-3 rounded-full border border-primary bg-primary/20'} />
+            </button>
           ))}
         </div>
       )}

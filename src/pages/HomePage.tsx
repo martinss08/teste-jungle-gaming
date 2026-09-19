@@ -342,7 +342,7 @@ function CatalogError({ onRetry, className }: { onRetry: () => void; className: 
   return (
     <div className={className} role="alert">
       <h2 className="font-display text-2xl font-bold">Nao foi possivel carregar o catalogo</h2>
-      <p className="mt-2 text-sm text-[#9b826d]">Verifique sua conexao e tente novamente.</p>
+      <p className="mt-2 text-sm text-[#b89c85]">Verifique sua conexao e tente novamente.</p>
       <Button className="mt-5" onClick={onRetry}>Tentar novamente</Button>
     </div>
   )
@@ -352,7 +352,7 @@ function CatalogEmpty({ onClear, className }: { onClear: () => void; className: 
   return (
     <div className={className}>
       <h2 className="font-display text-2xl font-bold">Nenhum NFT encontrado</h2>
-      <p className="mt-2 text-sm text-[#9b826d]">Ajuste a busca ou remova filtros para ver mais obras.</p>
+      <p className="mt-2 text-sm text-[#b89c85]">Ajuste a busca ou remova filtros para ver mais obras.</p>
       <Button variant="secondary" className="mt-5" onClick={onClear}>Limpar filtros</Button>
     </div>
   )
@@ -533,7 +533,7 @@ export function HomePage() {
               <div className="p-4">
                 <p className="text-[0.68rem] font-bold text-primarySoft">15 de setembro | Leitura de {index + 2} min</p>
                 <h3 className="mt-3 font-display text-base font-bold leading-tight">{title}</h3>
-                <p className="mt-3 text-xs font-bold leading-5 text-[#9b826d]">{description}</p>
+                <p className="mt-3 text-xs font-bold leading-5 text-[#b89c85]">{description}</p>
                 <p className="mt-3 text-xs font-bold text-[#806957]">Artigo em breve</p>
               </div>
             </article>
@@ -659,12 +659,13 @@ function MobileHomePage({
           ))}
         </div>
       ) : items.length ? (
-        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-7">
+        <div className="mt-4 grid min-h-[1380px] grid-cols-2 gap-x-5 gap-y-7">
           {items.map((nft, index) => (
             <MobileNftCard
               key={nft.id}
               nft={nft}
               staggered={index % 2 === 1}
+              priority={index < 4}
               isFavorite={favorites.isFavorite(nft.id)}
               isFavoritePending={favorites.isPending(nft.id)}
               onToggleFavorite={() => favorites.toggleFavorite(nft.id)}
@@ -702,7 +703,7 @@ function MobileHomePage({
             )}
             <div className="min-w-0">
               <h3 className="font-display text-sm font-black leading-tight">{item.title}</h3>
-              <p className="mt-2 text-xs font-bold leading-5 text-[#9b826d]">{item.description}</p>
+              <p className="mt-2 text-xs font-bold leading-5 text-[#b89c85]">{item.description}</p>
               <span className="mt-3 inline-flex items-center gap-1 text-xs font-black uppercase text-primarySoft">
                 Explorar
                 <ArrowRight size={13} />
@@ -714,7 +715,7 @@ function MobileHomePage({
 
       <section className="mt-14">
         <h2 className="font-display text-xl font-black text-primarySoft">Diario da Cunhagem</h2>
-        <p className="mt-2 text-sm font-bold leading-6 text-[#9b826d]">
+        <p className="mt-2 text-sm font-bold leading-6 text-[#b89c85]">
           Guias rapidos para colecionar, proteger sua carteira e acompanhar novos criadores.
         </p>
         <div className="mt-5 grid gap-4">
@@ -723,7 +724,7 @@ function MobileHomePage({
               <img src={image} alt="" className="aspect-square rounded-[14px] object-cover" loading="lazy" />
               <div>
                 <h3 className="font-display text-sm font-black leading-tight">{title}</h3>
-                <p className="mt-2 text-xs font-bold leading-5 text-[#9b826d]">{description}</p>
+                <p className="mt-2 text-xs font-bold leading-5 text-[#b89c85]">{description}</p>
               </div>
             </article>
           ))}
@@ -754,9 +755,10 @@ function MobileHomePage({
   )
 }
 
-function MobileNftCard({ nft, staggered, isFavorite, isFavoritePending, onToggleFavorite }: {
+function MobileNftCard({ nft, staggered, priority = false, isFavorite, isFavoritePending, onToggleFavorite }: {
   nft: Nft
   staggered: boolean
+  priority?: boolean
   isFavorite: boolean
   isFavoritePending: boolean
   onToggleFavorite: () => void
@@ -770,7 +772,13 @@ function MobileNftCard({ nft, staggered, isFavorite, isFavoritePending, onToggle
               {rarityLabels[nft.rarity]}
             </span>
           )}
-          <img src={nft.hero} alt={nft.title} className="aspect-square w-full rounded-[16px] object-cover" loading="lazy" />
+          <img
+            src={nft.hero}
+            alt={nft.title}
+            className="aspect-square w-full rounded-[16px] object-cover"
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
+          />
         </div>
         <h2 className="mt-3 truncate text-sm font-bold">{nft.title}</h2>
         <p className="text-base font-black text-primarySoft">

@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    environment:
+      VITE_ENABLE_MSW: "true"
+
+  preview:
+    build:
+      context: .
+      target: preview
+      args:
+        VITE_ENABLE_MSW: "true"
+    ports:
+      - "4173:4173"
+
+volumes:
+  node_modules:

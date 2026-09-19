@@ -279,7 +279,7 @@ export function AppShell() {
         <div className="md:hidden">
           <div className="border-t border-border bg-[#3a1d09] px-6 py-6">
             <span className="font-display text-sm font-bold uppercase tracking-[0.14em] text-foreground">Kurio</span>
-            <p className="mt-3 text-sm font-bold leading-6 text-[#b89c85]">
+            <p className="mt-3 text-sm font-bold leading-6 text-[#d1b38f]">
               Feito para colecionadores, criadores e cultura.
             </p>
             <div className="mt-4 flex items-center gap-3">
@@ -293,13 +293,13 @@ export function AppShell() {
                 <Linkedin size={15} />
               </a>
             </div>
-            <div className="mt-5 grid gap-2 text-xs font-bold text-[#9b826d]">
+            <div className="mt-5 grid gap-2 text-xs font-bold text-[#caa677]">
               <a href="tel:+5598970262878" className="hover:text-primarySoft">+55 98 97026-2878</a>
               <a href="mailto:victorcostamartins0@gmail.com" className="hover:text-primarySoft">victorcostamartins0@gmail.com</a>
               <span>Marabá-PA</span>
             </div>
           </div>
-          <div className="bg-[#160b08] px-6 py-5 text-center text-xs font-bold text-foreground/45">
+          <div className="bg-[#160b08] px-6 py-5 text-center text-xs font-bold text-[#b89c85]">
             2026 Kurio. Todos os direitos reservados.
           </div>
         </div>
@@ -314,7 +314,7 @@ export function AppShell() {
                     Kurio
                   </span>
                 </div>
-                <p className="mt-5 max-w-[250px] text-sm font-bold leading-6 text-[#8d8078]">
+                <p className="mt-5 max-w-[250px] text-sm font-bold leading-6 text-[#b89c85]">
                   Feito para colecionadores, criadores e cultura.
                 </p>
                 <div className="mt-6 flex gap-3">
@@ -352,7 +352,7 @@ export function AppShell() {
               ].map(([title, ...items]) => (
                 <div key={title}>
                   <h2 className="font-display text-sm font-bold text-foreground">{title}</h2>
-                  <ul className="mt-5 grid gap-4 text-sm font-bold text-[#8d8078]">
+                  <ul className="mt-5 grid gap-4 text-sm font-bold text-[#b89c85]">
                     {items.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
@@ -362,7 +362,7 @@ export function AppShell() {
 
               <div>
                 <h2 className="font-display text-sm font-bold text-foreground">Contato</h2>
-                <ul className="mt-5 grid gap-4 text-sm font-bold text-[#8d8078]">
+                <ul className="mt-5 grid gap-4 text-sm font-bold text-[#b89c85]">
                   <li><a href="mailto:victorcostamartins0@gmail.com" className="hover:text-primarySoft">victorcostamartins0@gmail.com</a></li>
                   <li><a href="tel:+5598970262878" className="hover:text-primarySoft">+55 98 97026-2878</a></li>
                   <li>Marabá-PA</li>
@@ -375,7 +375,7 @@ export function AppShell() {
               </div>
             </div>
 
-            <div className="mt-14 border-t border-border pt-8 text-center text-xs font-bold text-foreground/45">
+            <div className="mt-14 border-t border-border pt-8 text-center text-xs font-bold text-[#b89c85]">
               <span>2026 Kurio. Todos os direitos reservados.</span>
             </div>
           </div>

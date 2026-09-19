@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
@@ -8,17 +8,8 @@ import { AuthProvider } from './modules/auth/AuthProvider'
 import { RealtimeProvider } from './modules/realtime/RealtimeProvider'
 import { RequireAuth } from './modules/auth/RequireAuth'
 import { validateCatalogSearch } from './modules/catalog/search'
+import { RouteSuspense } from './routes/RouteSuspense'
 import { HomePage } from './pages/HomePage'
-import { NftDetailsPage } from './pages/NftDetailsPage'
-import { CartPage } from './pages/CartPage'
-import { CheckoutPage } from './pages/CheckoutPage'
-import { ConfirmationPage } from './pages/ConfirmationPage'
-import { LoginPage } from './pages/LoginPage'
-import { RegisterPage } from './pages/RegisterPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { WalletsPage } from './pages/WalletsPage'
-import { CreatorsPage } from './pages/CreatorsPage'
-import { LearnPage } from './pages/LearnPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import '@fontsource/inter/latin-400.css'
 import '@fontsource/inter/latin-500.css'
@@ -28,6 +19,17 @@ import '@fontsource/inter/latin-800.css'
 import '@fontsource/space-grotesk/latin-600.css'
 import '@fontsource/space-grotesk/latin-700.css'
 import './styles.css'
+
+const NftDetailsPage = lazy(() => import('./pages/NftDetailsPage').then((module) => ({ default: module.NftDetailsPage })))
+const CartPage = lazy(() => import('./pages/CartPage').then((module) => ({ default: module.CartPage })))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then((module) => ({ default: module.CheckoutPage })))
+const ConfirmationPage = lazy(() => import('./pages/ConfirmationPage').then((module) => ({ default: module.ConfirmationPage })))
+const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })))
+const RegisterPage = lazy(() => import('./pages/RegisterPage').then((module) => ({ default: module.RegisterPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const WalletsPage = lazy(() => import('./pages/WalletsPage').then((module) => ({ default: module.WalletsPage })))
+const CreatorsPage = lazy(() => import('./pages/CreatorsPage').then((module) => ({ default: module.CreatorsPage })))
+const LearnPage = lazy(() => import('./pages/LearnPage').then((module) => ({ default: module.LearnPage })))
 
 async function enableMocking() {
   const shouldEnable =
@@ -63,25 +65,25 @@ const indexRoute = createRoute({
 const nftRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/nft/$nftId',
-  component: NftDetailsPage,
+  component: () => <RouteSuspense><NftDetailsPage /></RouteSuspense>,
 })
 
 const cartRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/carrinho',
-  component: CartPage,
+  component: () => <RouteSuspense><CartPage /></RouteSuspense>,
 })
 
 const creatorsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/criadores',
-  component: CreatorsPage,
+  component: () => <RouteSuspense><CreatorsPage /></RouteSuspense>,
 })
 
 const learnRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/aprenda',
-  component: LearnPage,
+  component: () => <RouteSuspense><LearnPage /></RouteSuspense>,
 })
 
 const checkoutRoute = createRoute({
@@ -89,7 +91,7 @@ const checkoutRoute = createRoute({
   path: '/pagamento',
   component: () => (
     <RequireAuth>
-      <CheckoutPage />
+      <RouteSuspense><CheckoutPage /></RouteSuspense>
     </RequireAuth>
   ),
 })
@@ -102,7 +104,7 @@ const confirmationRoute = createRoute({
   }),
   component: () => (
     <RequireAuth>
-      <ConfirmationPage />
+      <RouteSuspense><ConfirmationPage /></RouteSuspense>
     </RequireAuth>
   ),
 })
@@ -110,7 +112,7 @@ const confirmationRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: LoginPage,
+  component: () => <RouteSuspense><LoginPage /></RouteSuspense>,
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search.redirect === 'string' ? search.redirect : '/',
   }),
@@ -119,7 +121,7 @@ const loginRoute = createRoute({
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cadastro',
-  component: RegisterPage,
+  component: () => <RouteSuspense><RegisterPage /></RouteSuspense>,
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search.redirect === 'string' ? search.redirect : '/',
   }),
@@ -130,7 +132,7 @@ const profileRoute = createRoute({
   path: '/perfil',
   component: () => (
     <RequireAuth>
-      <ProfilePage />
+      <RouteSuspense><ProfilePage /></RouteSuspense>
     </RequireAuth>
   ),
 })
@@ -140,7 +142,7 @@ const walletsRoute = createRoute({
   path: '/carteiras',
   component: () => (
     <RequireAuth>
-      <WalletsPage />
+      <RouteSuspense><WalletsPage /></RouteSuspense>
     </RequireAuth>
   ),
 })
