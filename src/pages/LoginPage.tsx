@@ -50,47 +50,35 @@ export function AuthModalPage({
   const navigate = useNavigate()
   const redirectValue = redirect ?? getAuthRedirectSearch().redirect
   const redirectSearch = { redirect: redirectValue }
-  const title = isRegister ? 'Criar conta' : 'Entrar'
+  const title = isRegister ? 'Criar perfil de colecionador' : 'Entrar'
+  const submitLabel = isRegister ? 'Criar perfil' : 'Entrar'
   const close = () => (onClose ? onClose() : void navigateFromAuthClose(navigate))
+  const switchMode = (nextMode: AuthMode) => {
+    if (onModeChange) onModeChange(nextMode)
+  }
 
   return (
     <Dialog
       labelledBy="auth-title"
       onClose={close}
-      className="relative w-full max-w-[500px] overflow-hidden rounded-b-md border-b-8 border-[#dc8f4c] bg-[#25120d] font-mono text-[#f8ead6] shadow-[0_22px_70px_rgba(0,0,0,0.42)]"
+      className="relative min-h-[calc(100dvh-24px)] w-full max-w-[414px] overflow-hidden rounded-[34px] bg-[#100805] font-mono text-[#f8ead6] shadow-[0_22px_70px_rgba(0,0,0,0.42)] md:min-h-0 md:max-w-[500px] md:rounded-b-md md:border-b-8 md:border-[#dc8f4c] md:bg-[#25120d]"
     >
       <button
         type="button"
-        className="absolute right-3 top-3 grid size-8 place-items-center text-[#dc8f4c] transition hover:text-primary"
+        className="absolute right-4 top-4 grid size-8 place-items-center text-[#dc8f4c] opacity-0 transition hover:text-primary focus:opacity-100 md:opacity-100"
         aria-label="Fechar"
         onClick={close}
       >
         <X size={20} />
       </button>
 
-      <div className="px-6 pb-16 pt-12 sm:px-20">
-        <h2 id="auth-title" className="sr-only">{title}</h2>
-        <div className="flex justify-center text-[1.35rem] font-black tracking-[0.08em]">
-          {onModeChange ? (
-            <button type="button" className={cn(!isRegister ? 'text-[#dc8f4c]' : 'text-[#f8ead6]')} aria-pressed={!isRegister} onClick={() => onModeChange('login')}>
-              Entrar
-            </button>
-          ) : (
-            <Link to="/login" search={redirectSearch} className={cn(!isRegister ? 'text-[#dc8f4c]' : 'text-[#f8ead6]')} aria-current={!isRegister ? 'page' : undefined}>
-              Entrar
-            </Link>
-          )}
-          <span className="px-2 text-[#f8ead6]" aria-hidden="true">|</span>
-          {onModeChange ? (
-            <button type="button" className={cn(isRegister ? 'text-[#dc8f4c]' : 'text-[#f8ead6]')} aria-pressed={isRegister} onClick={() => onModeChange('register')}>
-              Criar conta
-            </button>
-          ) : (
-            <Link to="/cadastro" search={redirectSearch} className={cn(isRegister ? 'text-[#dc8f4c]' : 'text-[#f8ead6]')} aria-current={isRegister ? 'page' : undefined}>
-              Criar conta
-            </Link>
-          )}
+      <div className="flex min-h-[calc(100dvh-24px)] flex-col px-7 pb-6 pt-[112px] md:min-h-0 md:px-20 md:pb-12 md:pt-20">
+        <div className="text-center font-display text-[2rem] font-black uppercase tracking-[0.12em] text-[#f8ead6]">
+          Kurio
         </div>
+        <h2 id="auth-title" className="mt-[84px] text-center font-display text-xl font-black tracking-[0.08em] text-[#f8ead6] md:mt-14">
+          {title}
+        </h2>
 
         {sessionExpired && (
           <p role="status" className="mx-auto mt-6 max-w-[360px] rounded-sm border border-[#dc8f4c] bg-[#3a1d09] p-3 text-center text-sm">
@@ -98,13 +86,7 @@ export function AuthModalPage({
           </p>
         )}
 
-        <p className="mx-auto mt-9 max-w-[360px] text-center text-sm leading-5 tracking-[0.04em] text-[#f8ead6]">
-          {isRegister
-            ? 'Crie seu perfil de colecionador e conecte uma carteira quando quiser.'
-            : 'Entre para gerenciar sua carteira, colecao e perfil de criador.'}
-        </p>
-
-        <form key={mode} className="mt-7 grid gap-3" noValidate onSubmit={authForm.handleSubmit}>
+        <form key={mode} className="mt-9 grid gap-3 md:mt-7" noValidate onSubmit={authForm.handleSubmit}>
           {isRegister && <AuthModalInput name="name" label="Nome" placeholder="Nome de usuario" autoComplete="name" error={authForm.errors.name} />}
           <AuthModalInput
             name="email"
@@ -127,8 +109,8 @@ export function AuthModalPage({
             <AuthModalInput name="confirm" type="password" label="Confirmar senha" placeholder="Confirmar senha" autoComplete="new-password" error={authForm.errors.confirm} />
           )}
           {!isRegister && (
-            <p className="justify-self-end pt-1 text-xs tracking-[0.04em] text-[#b9966d]">
-              Recuperacao de senha indisponivel na simulacao.
+            <p className="justify-self-end pt-1 text-sm tracking-[0.04em] text-[#dc8f4c]">
+              Esqueceu a senha?
             </p>
           )}
 
@@ -136,32 +118,61 @@ export function AuthModalPage({
 
           <button
             type="submit"
-            className="mt-5 h-[45px] rounded-[6px] bg-[#dc8f4c] text-base font-black tracking-[0.04em] text-[#090403] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 sm:mt-6"
+            className="mt-8 h-[60px] rounded-[9px] bg-[#dc8f4c] text-base font-black tracking-[0.04em] text-[#090403] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 md:mt-6 md:h-[52px]"
             disabled={authForm.isSubmitting}
           >
-            {authForm.isSubmitting ? 'Aguarde...' : title}
+            {authForm.isSubmitting ? 'Aguarde...' : submitLabel}
           </button>
           {!isRegister && (
-            <p className="text-center text-xs text-[#b9966d]">Conta demo: julia@greenmint.dev / greenmint</p>
+            <p className="sr-only">Conta demo: julia@greenmint.dev / greenmint</p>
           )}
         </form>
 
-        <div className="mx-[-1.5rem] mt-7 flex items-center gap-3 sm:mx-[-5rem]">
+        <div className="mt-11 flex items-center gap-3 md:mx-[-5rem] md:mt-8">
           <span className="h-px flex-1 bg-[#4c261b]" />
           <span className="text-xs tracking-[0.04em] text-[#f8ead6]">Ou continue com</span>
           <span className="h-px flex-1 bg-[#4c261b]" />
         </div>
 
         <div className="mt-5 grid gap-4">
-          <button type="button" disabled aria-describedby="social-login-note" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] transition hover:border-[#dc8f4c]">
             <span className="text-xl font-black text-[#4285f4]" aria-hidden="true">G</span>
             Continuar com Google
           </button>
-          <button type="button" disabled aria-describedby="social-login-note" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] transition hover:border-[#dc8f4c]">
             <span className="text-2xl font-black text-[#4267b2]" aria-hidden="true">f</span>
             Continuar com Facebook
           </button>
-          <p id="social-login-note" className="text-center text-xs text-[#b9966d]">Login social indisponivel na simulacao.</p>
+        </div>
+
+        <div className="mt-auto pt-10 text-center text-sm tracking-[0.04em] text-[#ceb18f] md:pt-8">
+          {isRegister ? (
+            <>
+              Ja tem uma conta?{' '}
+              {onModeChange ? (
+                <button type="button" className="text-[#f8ead6] transition hover:text-[#dc8f4c]" onClick={() => switchMode('login')}>
+                  Entre
+                </button>
+              ) : (
+                <Link to="/login" search={redirectSearch} className="text-[#f8ead6] transition hover:text-[#dc8f4c]">
+                  Entre
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              Novo na Kurio?{' '}
+              {onModeChange ? (
+                <button type="button" className="text-[#f8ead6] transition hover:text-[#dc8f4c]" onClick={() => switchMode('register')}>
+                  Crie uma conta
+                </button>
+              ) : (
+                <Link to="/cadastro" search={redirectSearch} className="text-[#f8ead6] transition hover:text-[#dc8f4c]">
+                  Crie uma conta
+                </Link>
+              )}
+            </>
+          )}
         </div>
       </div>
     </Dialog>
@@ -203,7 +214,7 @@ function AuthModalInput({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           className={cn(
-            'h-10 w-full rounded-[5px] border border-[#4c261b] bg-transparent px-4 text-sm tracking-[0.04em] text-[#f8ead6] placeholder:text-[#b9966d] outline-none focus:border-[#dc8f4c] aria-[invalid=true]:border-red-400',
+            'h-[50px] w-full rounded-[9px] border border-[#4c261b] bg-transparent px-4 text-sm tracking-[0.04em] text-[#f8ead6] placeholder:text-[#b9966d] outline-none focus:border-[#dc8f4c] aria-[invalid=true]:border-red-400 md:h-11 md:rounded-[5px]',
             highlighted && 'border-[#dc8f4c]',
             isPassword && 'pr-11',
           )}

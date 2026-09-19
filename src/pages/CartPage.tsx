@@ -179,6 +179,11 @@ export function CartPage() {
     <>
       <MobileCartPage onCheckout={handleCheckout} />
 
+      <div className="bg-[#120906] px-6 pb-12 font-mono text-foreground md:hidden">
+        <NftCarousel title="Colecionadores tambem viram" items={recommendations} isLoading={recommendationsQuery.isPending} />
+        <BenefitsSignup />
+      </div>
+
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[60px] xl:px-[120px]">
       <div className="font-display text-base font-bold text-foreground">
         <Link to="/" search={defaultCatalogSearch} className="hover:text-primarySoft">Inicio</Link>

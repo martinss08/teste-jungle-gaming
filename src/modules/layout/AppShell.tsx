@@ -209,7 +209,7 @@ export function AppShell() {
         </div>
       )}
 
-      <main id="conteudo-principal" tabIndex={-1} className="pb-[110px] md:pb-0">
+      <main id="conteudo-principal" tabIndex={-1}>
         <Outlet />
       </main>
 
@@ -217,19 +217,26 @@ export function AppShell() {
         <Link to="/" search={defaultCatalogSearch} aria-label="Inicio">
           <Home size={22} className="fill-current" />
         </Link>
+        <Link to="/" search={defaultCatalogSearch} hash="busca" aria-label="Buscar no catalogo">
+          <Search size={23} />
+        </Link>
+        <button
+          type="button"
+          aria-label="Conta"
+          aria-haspopup="dialog"
+          aria-expanded={accountOpen}
+          className="-mt-12 grid size-16 place-items-center rounded-full bg-[#c57d3b] text-white shadow-glow"
+          onClick={() => setAccountOpen(true)}
+        >
+          <UserRound size={26} className="fill-current" />
+        </button>
         <Link to="/perfil" hash="favoritos" aria-label="Favoritos">
           <Heart size={22} className="fill-current" />
-        </Link>
-        <Link to="/" search={defaultCatalogSearch} hash="busca" className="-mt-12 grid size-16 place-items-center rounded-full bg-[#c57d3b] text-white shadow-glow" aria-label="Buscar no catalogo">
-          <Search size={26} />
         </Link>
         <Link to="/carrinho" aria-label={`Carrinho com ${itemCount} itens`} className="relative">
           <ShoppingCart size={22} className="fill-current" />
           {itemCount > 0 && <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-primary text-[0.58rem] text-[#120906]" aria-hidden="true">{itemCount}</span>}
         </Link>
-        <button type="button" aria-label="Conta" aria-haspopup="dialog" aria-expanded={accountOpen} onClick={() => setAccountOpen(true)}>
-          <UserRound size={22} className="fill-current" />
-        </button>
       </nav>
 
       {accountOpen && (
@@ -265,8 +272,8 @@ export function AppShell() {
         </Dialog>
       )}
 
-      <footer className="hidden bg-[#160b08] md:block">
-        <div className="mx-auto max-w-[1440px] px-4 pb-10 sm:px-6 lg:px-[120px]">
+      <footer className="bg-[#160b08] pb-[112px] md:pb-0">
+        <div className="mx-auto max-w-[1440px] px-6 pb-10 md:px-4 sm:px-6 lg:px-[120px]">
           <div className="grid gap-6 border-t border-border bg-[#3a1d09] px-7 py-7 text-sm font-bold text-[#b89c85] md:grid-cols-4">
             <span className="font-display uppercase tracking-[0.14em] text-foreground">Kurio</span>
             <span>Feito para colecionadores, criadores e cultura</span>

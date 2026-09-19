@@ -680,6 +680,41 @@ function MobileHomePage({
         <Pagination page={search.page} totalPages={totalPages} onPage={(page) => onSearch({ page })} />
       </div>
 
+      <section className="mt-12 grid gap-5" aria-label="Mais formas de explorar">
+        <PromoTile
+          nft={featured[0]}
+          title="Lancamentos genesis de edicao limitada"
+          description="Colecione edicoes escassas diretamente dos criadores antes da revelacao publica."
+          search={{ ...defaultCatalogSearch, tag: 'lancamento' }}
+        />
+        <PromoTile
+          nft={featured[2]}
+          title="Arte digital selecionada e muito mais"
+          description="Explore novos artistas, colecoes verificadas e obras digitais que definem a cultura."
+          search={{ ...defaultCatalogSearch, category: 'Arte digital' }}
+        />
+      </section>
+
+      <section className="mt-14">
+        <h2 className="font-display text-xl font-black text-primarySoft">Diario da Cunhagem</h2>
+        <p className="mt-2 text-sm font-bold leading-6 text-[#9b826d]">
+          Guias rapidos para colecionar, proteger sua carteira e acompanhar novos criadores.
+        </p>
+        <div className="mt-5 grid gap-4">
+          {blogPosts.slice(0, 3).map(([title, description, image]) => (
+            <article key={title} className="grid grid-cols-[92px_1fr] gap-4 rounded-[18px] bg-card p-3">
+              <img src={image} alt="" className="aspect-square rounded-[14px] object-cover" loading="lazy" />
+              <div>
+                <h3 className="font-display text-sm font-black leading-tight">{title}</h3>
+                <p className="mt-2 text-xs font-bold leading-5 text-[#9b826d]">{description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <BenefitsSignup />
+
       {filtersOpen && (
         <Dialog labelledBy="mobile-filters-title" placement="bottom" onClose={() => setFiltersOpen(false)} className="max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-card px-6 pb-8 pt-6">
           <div className="flex items-center justify-between">

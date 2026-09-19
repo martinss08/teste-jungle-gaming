@@ -15,11 +15,11 @@ export function NftCarousel({ title, items, isLoading }: { title: string; items:
   if (!isLoading && !items.length) return null
 
   return (
-    <section className="mt-24" aria-labelledby={titleId}>
-      <h2 id={titleId} className="border-b border-border pb-3 font-display text-xl font-bold text-primarySoft">{title}</h2>
-      <div className="mt-8 grid gap-7 sm:grid-cols-2 lg:grid-cols-5">
+    <section className="mt-14 md:mt-24" aria-labelledby={titleId}>
+      <h2 id={titleId} className="border-b border-border pb-3 font-display text-lg font-bold text-primarySoft md:text-xl">{title}</h2>
+      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-2 md:mt-8 md:gap-7 lg:grid-cols-5">
         {isLoading
-          ? Array.from({ length: perPage }).map((_, index) => <Skeleton key={index} className="aspect-[0.78] rounded-none" />)
+          ? Array.from({ length: perPage }).map((_, index) => <Skeleton key={index} className="aspect-[0.9] rounded-[14px] md:aspect-[0.78] md:rounded-none" />)
           : visible.map((nft) => <NftCard key={nft.id} nft={nft} />)}
       </div>
       {totalPages > 1 && (

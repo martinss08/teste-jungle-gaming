@@ -237,6 +237,11 @@ function NftDetails({ nftId }: { nftId: string }) {
         favorite={favorite}
       />
 
+      <div className="bg-[#120906] px-6 pb-12 font-mono text-foreground md:hidden">
+        <NftCarousel title="Mais desta colecao" items={related} isLoading={relatedQuery.isPending} />
+        <BenefitsSignup />
+      </div>
+
       <div className="mx-auto hidden max-w-[1440px] px-4 pb-14 pt-9 sm:px-6 md:block lg:px-[120px]">
       <nav className="font-display text-base font-bold text-foreground" aria-label="Trilha">
         <Link to="/" search={defaultCatalogSearch} className="hover:text-primarySoft">Inicio</Link>
