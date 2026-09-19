@@ -1,13 +1,16 @@
 import type {
   CartResponse,
+  CollectorDetails,
   MockNftChange,
   MockScenario,
   Order,
+  OrderStatus,
   Profile,
   QuoteLine,
   QuoteLineIssue,
   QuoteResponse,
   SessionResponse,
+  WalletProvider,
 } from '../contracts/api'
 import { nfts, wallets as fixtureWallets } from '../data/nfts'
 import { addEth, compareEth, multiplyEth, percentOfEth, subtractEth } from '../lib/eth'
@@ -21,8 +24,15 @@ type MockUser = {
 }
 
 type IdempotencyRecord = {
+  userId: string
   fingerprint: string
   orderId: string
+}
+
+type OrderMeta = {
+  userId: string
+  resolveAt: number
+  finalStatus: OrderStatus
 }
 
 type MockState = {
@@ -34,6 +44,7 @@ type MockState = {
   carts: Record<string, CartResponse>
   orders: Record<string, Order>
   idempotency: Record<string, IdempotencyRecord>
+  orderMeta: Record<string, OrderMeta>
   nftChanges: Record<string, MockNftChange>
   quoteVersion: number
   scenario: MockScenario
@@ -50,6 +61,8 @@ const defaultScenario: MockScenario = {
   paymentResult: 'confirmado',
   quoteChanged: false,
   timeoutNextOrder: false,
+  paymentDelayMs: 2500,
+  walletConnection: 'aprovar',
 }
 
 function seedLine(nftId: string, quantity: number) {
@@ -129,6 +142,7 @@ function createInitialState(): MockState {
     },
     orders: {},
     idempotency: {},
+    orderMeta: {},
     nftChanges: {},
     quoteVersion: 1,
     scenario: defaultScenario,
@@ -348,50 +362,101 @@ export function reviewCart(owner: string) {
   return cart
 }
 
-export function createOrderFromQuote(owner: string, orderInput: { walletId: string; network: string }) {
-  const quote = createQuote(owner)
+type CreateOrderInput = {
+  wallet: Wallet
+  network: string
+  provider: WalletProvider
+  collector: CollectorDetails
+}
+
+// Cria o pedido como snapshot da cotacao atual. O pagamento comeca pendente e e liquidado
+// depois de `paymentDelayMs` com o resultado do cenario (`paymentResult`).
+export function createOrderFromQuote(userId: string, input: CreateOrderInput) {
+  const quote = createQuote(userId)
   const orderId = `GM-${String(Object.keys(state.orders).length + 2049).padStart(4, '0')}`
-  const status = state.scenario.paymentResult
   const createdAt = new Date().toISOString()
   const order: Order = {
     id: orderId,
-    status,
+    status: 'pendente',
     transaction: `0x${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}...${orderId.slice(-4).toLowerCase()}`,
     explorerUrl: `https://explorer.kurio.mock/tx/${orderId}`,
     subtotalEth: quote.subtotalEth,
     discountEth: quote.discountEth,
     networkFeeEth: quote.networkFeeEth,
     totalEth: quote.totalEth,
-    items: quote.lines.map((line) => {
-      return {
-        nftId: line.nftId,
-        title: line.title,
-        quantity: line.quantity,
-        unitPriceEth: line.unitPriceEth,
-        subtotalEth: line.subtotalEth,
-      }
-    }),
+    couponCode: quote.couponCode,
+    quoteVersion: quote.quoteVersion,
+    network: input.network,
+    provider: input.provider,
+    wallet: { id: input.wallet.id, label: input.wallet.label, address: input.wallet.address },
+    collector: { ...input.collector },
+    items: quote.lines.map((line) => ({
+      nftId: line.nftId,
+      title: line.title,
+      edition: line.edition,
+      imageUrl: line.imageUrl,
+      quantity: line.quantity,
+      unitPriceEth: line.unitPriceEth,
+      subtotalEth: line.subtotalEth,
+    })),
     createdAt,
     updatedAt: createdAt,
   }
 
-  if (status === 'confirmado') {
-    const cart = ensureCart(owner)
+  state.orders[orderId] = order
+  state.orderMeta[orderId] = {
+    userId,
+    resolveAt: Date.now() + state.scenario.paymentDelayMs,
+    finalStatus: state.scenario.paymentResult,
+  }
+  persistState()
+  return settleOrder(orderId)
+}
+
+// Liquida o pagamento pendente quando o prazo simulado vence. Somente pedidos confirmados
+// consomem o carrinho (apenas itens/quantidades comprados) e o estoque das edicoes.
+function settleOrder(orderId: string) {
+  const order = state.orders[orderId]
+  const meta = state.orderMeta[orderId]
+  if (!order || !meta || order.status !== 'pendente') return order
+  if (meta.finalStatus === 'pendente' || Date.now() < meta.resolveAt) return order
+
+  order.status = meta.finalStatus
+  order.updatedAt = new Date().toISOString()
+
+  if (order.status === 'confirmado') {
+    const cart = ensureCart(meta.userId)
     for (const purchased of order.items) {
       const current = cart.items.find((line) => line.nftId === purchased.nftId)
-      if (!current) continue
-      current.quantity -= purchased.quantity
-      if (current.quantity <= 0) {
-        cart.items = cart.items.filter((line) => line.nftId !== purchased.nftId)
-      }
+      if (current) current.quantity -= purchased.quantity
+      const nft = getNft(purchased.nftId)
+      if (nft) state.nftChanges[nft.id] = { ...state.nftChanges[nft.id], available: Math.max(0, nft.available - purchased.quantity) }
     }
-    touchCart(owner)
+    cart.items = cart.items.filter((line) => line.quantity > 0)
+    state.quoteVersion += 1
+    touchCart(meta.userId)
   }
 
-  void orderInput
-  state.orders[orderId] = order
   persistState()
   return order
+}
+
+export function getOrderForUser(orderId: string, userId: string) {
+  if (state.orderMeta[orderId]?.userId !== userId) return undefined
+  return settleOrder(orderId)
+}
+
+export function findIdempotentOrder(idempotencyKey: string) {
+  return state.idempotency[idempotencyKey]
+}
+
+export function rememberIdempotentOrder(idempotencyKey: string, record: IdempotencyRecord) {
+  state.idempotency[idempotencyKey] = record
+  persistState()
+}
+
+export function findUserWallet(userId: string, walletId: string) {
+  return (state.wallets[userId] ?? []).find((wallet) => wallet.id === walletId)
 }
 
 function readState(): MockState {
@@ -401,7 +466,8 @@ function readState(): MockState {
     const raw = localStorage.getItem(storageKey)
     if (!raw) return createInitialState()
     // Estados persistidos por versoes anteriores podem nao ter campos novos.
-    return { ...createInitialState(), ...(JSON.parse(raw) as Partial<MockState>) }
+    const persisted = JSON.parse(raw) as Partial<MockState>
+    return { ...createInitialState(), ...persisted, scenario: { ...defaultScenario, ...persisted.scenario } }
   } catch {
     return createInitialState()
   }

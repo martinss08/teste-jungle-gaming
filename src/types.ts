@@ -29,12 +29,3 @@ export type Wallet = {
   network: string
   status: 'conectada' | 'pendente'
 }
-
-export type Order = {
-  id: string
-  transaction: string
-  status: 'pendente' | 'confirmado' | 'recusado'
-  totalEth: string
-  networkFeeEth: string
-  items: CartLine[]
-}

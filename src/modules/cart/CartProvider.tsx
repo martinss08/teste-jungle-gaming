@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
 import { useState } from 'react'
-import type { ApiErrorResponse, CartResponse } from '../../contracts/api'
+import type { CartResponse } from '../../contracts/api'
+import { readApiError } from '../../lib/apiError'
 import { useAuth } from '../auth/useAuth'
 import { CartContext, type CartActionResult } from './CartContext'
 import {
@@ -19,13 +19,6 @@ const cartMutationKey = ['cart-mutation'] as const
 const zeroEth = '0.000'
 const cartErrorFallback = 'Nao foi possivel atualizar o carrinho.'
 const couponErrorFallback = 'Nao foi possivel aplicar o cupom.'
-
-function readApiError(error: unknown, fallback: string) {
-  if (axios.isAxiosError<ApiErrorResponse>(error)) {
-    return error.response?.data?.error?.message ?? fallback
-  }
-  return fallback
-}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
@@ -113,6 +106,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     applyCoupon: (code: string) => runCoupon(() => applyCouponRequest({ code: code.trim() })),
     removeCoupon: () => runCoupon(removeCouponRequest),
     reviewChanges: () => runCart(reviewCart),
+    refreshQuote: async () => {
+      await queryClient.invalidateQueries({ queryKey: cartKey })
+      return queryClient.query({ queryKey: quoteKey, queryFn: getQuote, staleTime: 0 })
+    },
     getQuantityInCart: (nftId: string) => items.find((item) => item.nftId === nftId)?.quantity ?? 0,
     itemCount: items.reduce((total, line) => total + line.quantity, 0),
     subtotalEth: quote?.subtotalEth ?? zeroEth,

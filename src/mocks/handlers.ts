@@ -4,14 +4,17 @@ import type {
   ApiErrorCode,
   ApplyCouponRequest,
   ChangePasswordRequest,
+  ConnectWalletRequest,
   CreateOrderRequest,
   LoginRequest,
   MockNftChange,
   RegisterRequest,
   UpdateCartItemRequest,
   UpdateProfileRequest,
+  WalletConnection,
   WalletRequest,
 } from '../contracts/api'
+import { SUPPORTED_NETWORKS } from '../contracts/api'
 import { compareEth } from '../lib/eth'
 import type { CartLine, Rarity, Wallet } from '../types'
 import {
@@ -20,13 +23,17 @@ import {
   createQuote,
   createSession,
   ensureCart,
+  findIdempotentOrder,
+  findUserWallet,
   getCartOwner,
   getNft,
+  getOrderForUser,
   getState,
   hashPassword,
   listNfts,
   mergeGuestCartIntoUser,
   persistState,
+  rememberIdempotentOrder,
   removeSession,
   resetState,
   resolveSession,
@@ -296,29 +303,37 @@ export const handlers = [
       return apiError('VALIDATION_ERROR', 'Chave de idempotencia obrigatoria.', 422, { idempotencyKey: 'Campo obrigatorio.' })
     }
 
-    const state = getState()
+    // Idempotencia vem antes de qualquer revalidacao: reenvio da mesma tentativa devolve o mesmo pedido.
     const fingerprint = JSON.stringify({ ...body, idempotencyKey: undefined })
-    const previous = state.idempotency[body.idempotencyKey]
+    const previous = findIdempotentOrder(body.idempotencyKey)
     if (previous) {
-      if (previous.fingerprint !== fingerprint) {
+      if (previous.userId !== session.user.id || previous.fingerprint !== fingerprint) {
         return apiError('IDEMPOTENCY_CONFLICT', 'Chave reutilizada com conteudo diferente.', 409)
       }
-      return HttpResponse.json(state.orders[previous.orderId])
+      return HttpResponse.json(getOrderForUser(previous.orderId, session.user.id))
     }
+
+    const fields = validateCollector(body)
+    const wallet = findUserWallet(session.user.id, body.walletId)
+    if (!wallet) fields.walletId = 'Selecione uma carteira cadastrada.'
+    else if (wallet.network !== body.network) fields.network = `A carteira ${wallet.label} opera na rede ${wallet.network}.`
+    if (Object.keys(fields).length) return apiError('VALIDATION_ERROR', 'Verifique os dados do pagamento.', 422, fields)
 
     const quote = createQuote(session.user.id)
-    if (body.quoteVersion !== quote.quoteVersion || quote.stale) {
-      return apiError('CONFLICT', 'Cotacao desatualizada. Revise os valores antes de confirmar.', 409)
+    if (!quote.lines.length) return apiError('VALIDATION_ERROR', 'Carrinho vazio.', 422)
+    if (quote.stale || body.quoteVersion !== quote.quoteVersion || compareEth(body.expectedTotalEth, quote.totalEth) !== 0) {
+      return apiError('QUOTE_CHANGED', 'A cotacao mudou. Revise os valores antes de confirmar.', 409)
     }
 
-    const order = createOrderFromQuote(session.user.id, body)
-    state.idempotency[body.idempotencyKey] = {
-      fingerprint,
-      orderId: order.id,
-    }
-    persistState()
+    const order = createOrderFromQuote(session.user.id, {
+      wallet: wallet!,
+      network: body.network,
+      provider: body.provider,
+      collector: body.collector,
+    })
+    rememberIdempotentOrder(body.idempotencyKey, { userId: session.user.id, fingerprint, orderId: order.id })
 
-    if (state.scenario.timeoutNextOrder) {
+    if (getState().scenario.timeoutNextOrder) {
       setScenario({ timeoutNextOrder: false })
       return apiError('TRANSIENT_FAILURE', 'Timeout simulado apos criacao do pedido. Reenvie com a mesma chave para recuperar.', 504)
     }
@@ -329,9 +344,37 @@ export const handlers = [
   http.get('/api/orders/:orderId', ({ request, params }) => {
     const session = resolveSession(request)
     if (!session) return apiError('UNAUTHORIZED', 'Pedidos exigem autenticacao.', 401)
-    const order = getState().orders[String(params.orderId)]
+    const order = getOrderForUser(String(params.orderId), session.user.id)
     if (!order) return apiError('NOT_FOUND', 'Pedido nao encontrado.', 404)
     return HttpResponse.json(order)
+  }),
+
+  // Conexao simulada: nao ha extensao real; o cenario decide se o usuario aprova ou recusa.
+  http.post('/api/wallets/connect', async ({ request }) => {
+    const session = resolveSession(request)
+    if (!session) return apiError('UNAUTHORIZED', 'Carteiras exigem autenticacao.', 401)
+    const body = await request.json() as ConnectWalletRequest
+    const wallet = findUserWallet(session.user.id, body.walletId)
+    if (!wallet) return apiError('NOT_FOUND', 'Carteira nao encontrada.', 404)
+    if (wallet.status !== 'conectada') {
+      return apiError('VALIDATION_ERROR', 'Carteira pendente de verificacao.', 422, { walletId: 'Verifique esta carteira antes de usa-la.' })
+    }
+    if (wallet.network !== body.network) {
+      return apiError('VALIDATION_ERROR', 'Rede incompativel com a carteira.', 422, { network: `A carteira ${wallet.label} opera na rede ${wallet.network}.` })
+    }
+    if (getState().scenario.walletConnection === 'recusar') {
+      return apiError('WALLET_REJECTED', 'Conexao recusada na carteira.', 403)
+    }
+
+    const connection: WalletConnection = {
+      connectionId: `conn-${crypto.randomUUID()}`,
+      walletId: wallet.id,
+      address: wallet.address,
+      network: wallet.network,
+      provider: body.provider,
+      connectedAt: new Date().toISOString(),
+    }
+    return HttpResponse.json(connection)
   }),
 
   http.get('/api/profile', ({ request }) => {
@@ -464,4 +507,16 @@ function validateWallet(body: WalletRequest) {
 function positiveNumber(value: string | null, fallback: number) {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function validateCollector(body: CreateOrderRequest) {
+  const fields: Record<string, string> = {}
+  const collector = body.collector ?? { displayName: '', username: '', email: '' }
+  if (!collector.displayName || collector.displayName.trim().length < 2) fields['collector.displayName'] = 'Informe pelo menos 2 caracteres.'
+  if (!/^[a-z0-9._]{3,24}$/.test(collector.username ?? '')) fields['collector.username'] = 'Use 3 a 24 letras minusculas, numeros, ponto ou _.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(collector.email ?? '')) fields['collector.email'] = 'Informe um e-mail valido.'
+  if ((collector.note ?? '').length > 280) fields['collector.note'] = 'Use no maximo 280 caracteres.'
+  if (!SUPPORTED_NETWORKS.includes(body.network as (typeof SUPPORTED_NETWORKS)[number])) fields.network = 'Selecione uma rede suportada.'
+  if (!['metamask', 'walletconnect', 'coinbase'].includes(body.provider)) fields.provider = 'Selecione o tipo de carteira.'
+  return fields
 }

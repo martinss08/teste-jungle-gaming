@@ -85,6 +85,9 @@ const checkoutRoute = createRoute({
 const confirmationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/confirmacao',
+  validateSearch: (search: Record<string, unknown>) => ({
+    pedido: typeof search.pedido === 'string' ? search.pedido : '',
+  }),
   component: () => (
     <RequireAuth>
       <ConfirmationPage />

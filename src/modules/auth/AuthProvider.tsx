@@ -56,6 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient])
 
+  const expireSession = useCallback(() => {
+    clearSessionToken()
+    setToken(null)
+    queryClient.clear()
+  }, [queryClient])
+
   const session = token ? sessionQuery.data ?? null : null
 
   return (
@@ -67,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        expireSession,
       }}
     >
       {children}

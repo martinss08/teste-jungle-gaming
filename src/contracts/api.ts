@@ -10,6 +10,8 @@ export type ApiErrorCode =
   | 'NETWORK_UNAVAILABLE'
   | 'TRANSIENT_FAILURE'
   | 'IDEMPOTENCY_CONFLICT'
+  | 'QUOTE_CHANGED'
+  | 'WALLET_REJECTED'
 
 export type ApiErrorResponse = {
   error: {
@@ -117,16 +119,45 @@ export type QuoteResponse = {
   stale: boolean
 }
 
+export const SUPPORTED_NETWORKS = ['Ethereum', 'Polygon', 'Base'] as const
+
+export type WalletProvider = 'metamask' | 'walletconnect' | 'coinbase'
+
+export type ConnectWalletRequest = {
+  walletId: string
+  network: string
+  provider: WalletProvider
+}
+
+export type WalletConnection = {
+  connectionId: string
+  walletId: string
+  address: string
+  network: string
+  provider: WalletProvider
+  connectedAt: string
+}
+
 export type OrderStatus = 'pendente' | 'confirmado' | 'recusado'
 
 export type OrderReceiptItem = {
   nftId: string
   title: string
+  edition: string
+  imageUrl: string
   quantity: number
   unitPriceEth: string
   subtotalEth: string
 }
 
+export type CollectorDetails = {
+  displayName: string
+  username: string
+  email: string
+  note?: string
+}
+
+// Recibo: snapshot imutavel gerado na criacao do pedido; nao muda se o catalogo mudar.
 export type Order = {
   id: string
   status: OrderStatus
@@ -136,6 +167,16 @@ export type Order = {
   discountEth: string
   networkFeeEth: string
   totalEth: string
+  couponCode?: string
+  quoteVersion: number
+  network: string
+  provider: WalletProvider
+  wallet: {
+    id: string
+    label: string
+    address: string
+  }
+  collector: CollectorDetails
   items: OrderReceiptItem[]
   createdAt: string
   updatedAt: string
@@ -144,14 +185,12 @@ export type Order = {
 export type CreateOrderRequest = {
   idempotencyKey: string
   quoteVersion: number
+  // Total revisado pelo usuario; o servidor recusa (QUOTE_CHANGED) se a cotacao atual divergir.
+  expectedTotalEth: string
   walletId: string
   network: string
-  collector: {
-    displayName: string
-    username: string
-    email: string
-    note?: string
-  }
+  provider: WalletProvider
+  collector: CollectorDetails
 }
 
 export type Profile = {
@@ -185,6 +224,9 @@ export type MockScenario = {
   failNext: boolean
   forceSessionExpired: boolean
   paymentResult: 'confirmado' | 'recusado' | 'pendente'
+  // Tempo ate o pagamento pendente ser liquidado com `paymentResult`.
+  paymentDelayMs: number
+  walletConnection: 'aprovar' | 'recusar'
   quoteChanged: boolean
   timeoutNextOrder: boolean
 }

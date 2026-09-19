@@ -8,6 +8,8 @@ export type AuthContextValue = {
   login: (email: string, password: string) => Promise<SessionResponse>
   register: (name: string, email: string, password: string) => Promise<SessionResponse>
   logout: () => Promise<void>
+  // Sessao recusada pela API (401): descarta token e cache privado sem chamar o logout remoto.
+  expireSession: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

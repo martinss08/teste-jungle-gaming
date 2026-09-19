@@ -1,4 +1,4 @@
-import type { Nft, Order, Wallet } from '../types'
+import type { Nft, Wallet } from '../types'
 
 import apeEmerald from '../assets/kurio-ape-0.png'
 import apeEmeraldDetail from '../assets/kurio-ape-emerald-detail.png'
@@ -122,18 +122,6 @@ export const wallets: Wallet[] = [
     status: 'pendente',
   },
 ]
-
-export const recentOrder: Order = {
-  id: 'GM-2049',
-  transaction: '0x9d3a4c...c72f',
-  status: 'confirmado',
-  totalEth: '5.07',
-  networkFeeEth: '0.07',
-  items: [
-    { nftId: 'emerald-ape-042', quantity: 1 },
-    { nftId: 'sage-hood-804', quantity: 1 },
-  ],
-}
 
 export const categories = ['GreenMint Apes', 'Forest Keepers', 'Solar Jungle', 'Night Grove']
 export const rarities = ['todos', 'comum', 'raro', 'epico', 'lendario'] as const

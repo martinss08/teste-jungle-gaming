@@ -225,7 +225,7 @@ async function navigateToRedirect(navigate: ReturnType<typeof useNavigate>, redi
   const search = redirect.includes('?') ? Object.fromEntries(new URLSearchParams(redirect.split('?')[1])) : undefined
 
   if (path === '/pagamento') return navigate({ to: '/pagamento', search })
-  if (path === '/confirmacao') return navigate({ to: '/confirmacao', search })
+  if (path === '/confirmacao') return navigate({ to: '/confirmacao', search: { pedido: search?.pedido ?? '' } })
   if (path === '/perfil') return navigate({ to: '/perfil', search })
   if (path === '/carteiras') return navigate({ to: '/carteiras', search })
   if (path === '/carrinho') return navigate({ to: '/carrinho', search })

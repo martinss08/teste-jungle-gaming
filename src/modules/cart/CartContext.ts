@@ -14,6 +14,8 @@ export type CartContextValue = {
   applyCoupon: (code: string) => Promise<CartActionResult>
   removeCoupon: () => Promise<CartActionResult>
   reviewChanges: () => Promise<CartActionResult>
+  // Busca carrinho e cotacao frescos na API (revalidacao antes de revisar/confirmar a compra).
+  refreshQuote: () => Promise<QuoteResponse>
   getQuantityInCart: (nftId: string) => number
   itemCount: number
   subtotalEth: string
