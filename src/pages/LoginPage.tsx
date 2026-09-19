@@ -230,7 +230,7 @@ async function navigateToRedirect(navigate: ReturnType<typeof useNavigate>, redi
   if (path === '/carteiras') return navigate({ to: '/carteiras', search })
   if (path === '/carrinho') return navigate({ to: '/carrinho', search })
   if (path.startsWith('/nft/')) return navigate({ to: '/nft/$nftId', params: { nftId: path.replace('/nft/', '') } })
-  return navigate({ to: '/', search: { q: '', rarity: 'todos', sort: 'recentes', page: 1 } })
+  return navigate({ to: '/', search: { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 } })
 }
 
 function readApiError(error: unknown) {
@@ -249,5 +249,5 @@ async function navigateFromAuthClose(navigate: ReturnType<typeof useNavigate>) {
 
   if (redirect === '/carrinho') return navigate({ to: '/carrinho' })
 
-  return navigate({ to: '/', search: { q: '', rarity: 'todos', sort: 'recentes', page: 1 } })
+  return navigate({ to: '/', search: { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 } })
 }

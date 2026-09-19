@@ -59,6 +59,52 @@ textarea:focus-visible {
   display: none;
 }
 
+.price-range-input {
+  position: absolute;
+  inset: 0;
+  height: 1.5rem;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.price-range-input:focus {
+  outline: none;
+}
+
+.price-range-input::-webkit-slider-runnable-track {
+  height: 0.25rem;
+  background: transparent;
+}
+
+.price-range-input::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.375rem;
+  appearance: none;
+  border: 2px solid #2a160f;
+  border-radius: 999px;
+  background: #d98f4d;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.price-range-input::-moz-range-track {
+  height: 0.25rem;
+  background: transparent;
+}
+
+.price-range-input::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #2a160f;
+  border-radius: 999px;
+  background: #d98f4d;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -5,6 +5,7 @@ export type Nft = {
   title: string
   creator: string
   collection: string
+  category: string
   rarity: Rarity
   priceEth: string
   previousPriceEth?: string

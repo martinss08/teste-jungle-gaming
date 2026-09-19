@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 export function NotFoundPage() {
   return (

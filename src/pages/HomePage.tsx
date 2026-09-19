@@ -1,11 +1,12 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ChevronRight, Heart, Home, Search, ShoppingCart, SlidersHorizontal, UserRound } from 'lucide-react'
-import type { FormEvent } from 'react'
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, Home, Search, ShoppingCart, SlidersHorizontal, UserRound } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
 import { Button } from '../components/ui/Button'
-import { categories, nfts } from '../data/nfts'
-import type { Nft, Rarity } from '../types'
+import { nfts } from '../data/nfts'
+import type { Nft } from '../types'
 import { formatEth } from '../lib/eth'
+import { cn } from '../lib/utils'
 import { useCart } from '../modules/cart/useCart'
 import { listNfts } from '../modules/catalog/api'
 import { useProtectedAction } from '../modules/auth/useProtectedAction'
@@ -13,12 +14,14 @@ import { useProtectedAction } from '../modules/auth/useProtectedAction'
 type HomeSearch = {
   q: string
   rarity: string
+  category: string
+  minPrice: string
+  maxPrice: string
   sort: string
   page: number
 }
 
-const collectionCounts = [33, 12, 65, 39, 23, 17, 19, 13, 18]
-const collectionLabels = [
+const categoryLabels = [
   'Arte digital',
   'Fotografia',
   'Musica',
@@ -37,23 +40,46 @@ const blogPosts = [
   ['Como proteger sua carteira', 'Proteja sua carteira, seus ativos e sua identidade.'],
 ]
 
-const rarityOptions: Array<{ value: Rarity | 'todos'; label: string }> = [
-  { value: 'todos', label: 'Todas raridades' },
-  { value: 'comum', label: 'Comum' },
-  { value: 'raro', label: 'Raro' },
-  { value: 'epico', label: 'Epico' },
-  { value: 'lendario', label: 'Lendario' },
-]
-
 const sortOptions: Array<{ value: HomeSearch['sort']; label: string }> = [
   { value: 'recentes', label: 'Recentes' },
-  { value: 'preco-menor', label: 'Menor preco' },
-  { value: 'preco-maior', label: 'Maior preco' },
+  { value: 'preco-maior', label: 'Mais caro' },
+  { value: 'preco-menor', label: 'Mais barato' },
 ]
 
-function repeatNfts(items: Nft[], minLength = 9) {
-  if (!items.length) return []
-  return Array.from({ length: minLength }, (_, index) => items[index % items.length])
+const priceStep = 0.01
+const catalogPrices = nfts.map((nft) => Number(nft.priceEth)).filter(Number.isFinite)
+const catalogPriceMin = Math.floor(Math.min(...catalogPrices) * 100) / 100
+const catalogPriceMax = Math.ceil(Math.max(...catalogPrices) * 100) / 100
+
+function parsePrice(value: string, fallback: number) {
+  const cleaned = value.replace(/^"|"$/g, '').replace(',', '.').trim()
+  if (!cleaned) return fallback
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function clampPrice(value: number) {
+  return Math.min(Math.max(value, catalogPriceMin), catalogPriceMax)
+}
+
+function formatPrice(value: number) {
+  return value.toFixed(2).replace('.', ',')
+}
+
+function getInitialPriceRange(search: HomeSearch) {
+  const min = clampPrice(parsePrice(search.minPrice, catalogPriceMin))
+  const max = clampPrice(parsePrice(search.maxPrice, catalogPriceMax))
+  return {
+    min: Math.min(min, max),
+    max: Math.max(min, max),
+  }
+}
+
+function getVisiblePages(currentPage: number, totalPages: number) {
+  const maxVisible = 4
+  const start = Math.min(Math.max(1, currentPage - maxVisible + 1), Math.max(1, totalPages - maxVisible + 1))
+  const count = Math.min(maxVisible, totalPages)
+  return Array.from({ length: count }, (_, index) => start + index)
 }
 
 function MarketCard({ nft, index }: { nft: Nft; index: number }) {
@@ -105,26 +131,124 @@ function PromoTile({ nft, reverse = false }: { nft: Nft; reverse?: boolean }) {
   )
 }
 
+function PriceRangeFilter({
+  search,
+  onSearch,
+}: {
+  search: HomeSearch
+  onSearch: (next: Partial<HomeSearch>) => void
+}) {
+  const [minValue, setMinValue] = useState(() => getInitialPriceRange(search).min)
+  const [maxValue, setMaxValue] = useState(() => getInitialPriceRange(search).max)
+
+  const rangeSize = catalogPriceMax - catalogPriceMin || 1
+  const minPercent = ((minValue - catalogPriceMin) / rangeSize) * 100
+  const maxPercent = ((maxValue - catalogPriceMin) / rangeSize) * 100
+
+  return (
+    <form
+      className="mt-5 grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSearch({
+          minPrice: minValue.toFixed(2),
+          maxPrice: maxValue.toFixed(2),
+        })
+      }}
+    >
+      <input type="hidden" name="minPrice" value={minValue.toFixed(2)} />
+      <input type="hidden" name="maxPrice" value={maxValue.toFixed(2)} />
+      <div className="relative h-6">
+        <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#7b4a27]" />
+        <div
+          className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"
+          style={{ left: `${minPercent}%`, right: `${100 - maxPercent}%` }}
+        />
+        <input
+          aria-label="Preco minimo"
+          className="price-range-input"
+          min={catalogPriceMin}
+          max={catalogPriceMax}
+          step={priceStep}
+          type="range"
+          value={minValue}
+          onChange={(event) => {
+            const next = Math.min(Number(event.target.value), maxValue)
+            setMinValue(next)
+          }}
+        />
+        <input
+          aria-label="Preco maximo"
+          className="price-range-input"
+          min={catalogPriceMin}
+          max={catalogPriceMax}
+          step={priceStep}
+          type="range"
+          value={maxValue}
+          onChange={(event) => {
+            const next = Math.max(Number(event.target.value), minValue)
+            setMaxValue(next)
+          }}
+        />
+      </div>
+      <p className="text-xs font-bold text-[#b89c85]">
+        Preco: {formatPrice(minValue)} - {formatPrice(maxValue)} ETH
+      </p>
+      <Button type="submit" size="sm" className="w-fit px-5">
+        Aplicar
+      </Button>
+    </form>
+  )
+}
+
 export function HomePage() {
   const search = useSearch({ from: '/' }) as HomeSearch
   const navigate = useNavigate({ from: '/' })
+  const [sortOpen, setSortOpen] = useState(false)
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['nfts', search],
     queryFn: ({ signal }) => listNfts({
       q: search.q,
-      rarity: search.rarity as Rarity | 'todos',
+      rarity: search.rarity as 'todos',
+      category: search.category === 'todos' ? undefined : search.category,
+      minPrice: search.minPrice,
+      maxPrice: search.maxPrice,
       sort: search.sort as 'recentes' | 'preco-menor' | 'preco-maior',
       page: search.page,
-      pageSize: 6,
+      pageSize: 9,
     }, signal),
   })
   const featured = nfts[0]
   const apiItems = data?.items ?? []
-  const marketItems = repeatNfts(apiItems)
+  const totalPages = data?.totalPages ?? 1
+  const visiblePages = getVisiblePages(search.page, totalPages)
+  const categoryCounts = categoryLabels.map((label) => ({
+    label,
+    count: nfts.filter((nft) => nft.category === label).length,
+  }))
 
   const updateSearch = (next: Partial<HomeSearch>) => {
     navigate({
       search: (old) => ({ ...old, ...next, page: next.page ?? 1 }),
+      resetScroll: false,
+    })
+  }
+  const hasActiveFilters =
+    Boolean(search.q?.trim()) ||
+    (search.category && search.category !== 'todos') ||
+    Boolean(search.minPrice) ||
+    Boolean(search.maxPrice) ||
+    search.sort !== 'recentes'
+  const clearFilters = () => {
+    setSortOpen(false)
+    updateSearch({
+      q: '',
+      rarity: 'todos',
+      category: 'todos',
+      minPrice: '',
+      maxPrice: '',
+      sort: 'recentes',
+      page: 1,
     })
   }
 
@@ -167,36 +291,40 @@ export function HomePage() {
       <section id="catalogo" className="mt-[50px] grid gap-10 lg:grid-cols-[300px_1fr] lg:gap-[52px]">
         <aside className="space-y-8">
           <div className="bg-card p-5">
-            <h2 className="font-display text-base font-bold">Colecoes</h2>
+            <h2 className="font-display text-base font-bold">Categorias</h2>
             <div className="mt-5 grid gap-4 text-sm font-bold text-[#9a806a]">
-              {collectionLabels.map((label, index) => (
+              <button
+                type="button"
+                className={cn(
+                  'flex items-center justify-between text-left transition hover:text-primarySoft',
+                  (search.category === 'todos' || !search.category) && 'text-primarySoft underline underline-offset-4',
+                )}
+                aria-pressed={search.category === 'todos' || !search.category}
+                onClick={() => updateSearch({ category: 'todos' })}
+              >
+                <span>Todas</span>
+                <span className="text-primarySoft">({nfts.length})</span>
+              </button>
+              {categoryCounts.map(({ label, count }) => (
                 <button
                   key={label}
                   type="button"
-                  className="flex items-center justify-between text-left transition hover:text-primarySoft"
-                  onClick={() => updateSearch({ q: categories[index % categories.length] })}
+                  className={cn(
+                    'flex items-center justify-between text-left transition hover:text-primarySoft',
+                    search.category === label && 'text-primarySoft underline underline-offset-4',
+                  )}
+                  aria-pressed={search.category === label}
+                  onClick={() => updateSearch({ category: label })}
                 >
                   <span>{label}</span>
-                  <span className="text-primarySoft">({collectionCounts[index]})</span>
+                  <span className="text-primarySoft">({count})</span>
                 </button>
               ))}
             </div>
 
             <div className="mt-10">
-              <h2 className="font-display text-base font-bold">Raridade</h2>
-              <div className="mt-5 grid gap-3 text-sm font-bold text-[#9a806a]" role="group" aria-label="Filtrar por raridade">
-                {rarityOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={option.value === search.rarity ? 'text-left text-primarySoft underline underline-offset-4' : 'text-left hover:text-primarySoft'}
-                    aria-pressed={option.value === search.rarity}
-                    onClick={() => updateSearch({ rarity: option.value })}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <h2 className="font-display text-base font-bold">Faixa de preco</h2>
+              <PriceRangeFilter key={`${search.minPrice}-${search.maxPrice}`} search={search} onSearch={updateSearch} />
             </div>
 
             <div className="mt-10">
@@ -224,52 +352,78 @@ export function HomePage() {
         <div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-5 font-display text-sm font-bold">
-              {['Todos os NFTs', 'Novos lancamentos', 'Em alta'].map((tab, index) => (
+              {[
+                ['recentes', 'Todos os NFTs'],
+                ['preco-menor', 'Novos lancamentos'],
+                ['preco-maior', 'Em alta'],
+              ].map(([sort, tab]) => (
                 <button
                   key={tab}
                   type="button"
-                  className={
-                    (index === 0 && search.sort === 'recentes') ||
-                    (index === 1 && search.sort === 'preco-menor') ||
-                    (index === 2 && search.sort === 'preco-maior')
-                      ? 'border-b-2 border-primary pb-1 text-primary'
-                      : 'pb-1 text-[#a18a78] hover:text-primarySoft'
-                  }
-                  aria-pressed={
-                    (index === 0 && search.sort === 'recentes') ||
-                    (index === 1 && search.sort === 'preco-menor') ||
-                    (index === 2 && search.sort === 'preco-maior')
-                  }
-                  onClick={() => updateSearch({ sort: sortOptions[index]?.value ?? 'recentes' })}
+                  className={search.sort === sort ? 'border-b-2 border-primary pb-1 text-primary' : 'pb-1 text-[#a18a78] hover:text-primarySoft'}
+                  aria-pressed={search.sort === sort}
+                  onClick={() => updateSearch({ sort })}
                 >
                   {tab}
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 self-start text-sm font-bold text-[#9a806a] hover:text-primarySoft sm:self-auto"
-              onClick={() => updateSearch({ sort: search.sort === 'preco-maior' ? 'recentes' : 'preco-maior' })}
-            >
-              <SlidersHorizontal size={16} />
-              Ordenar por: {sortOptions.find((option) => option.value === search.sort)?.label ?? 'Recentes'}
-            </button>
+            <div className="relative self-start sm:self-auto">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 text-sm font-bold text-[#9a806a] hover:text-primarySoft"
+                aria-expanded={sortOpen}
+                aria-haspopup="menu"
+                onClick={() => setSortOpen((value) => !value)}
+              >
+                <SlidersHorizontal size={16} />
+                Ordenar por: {sortOptions.find((option) => option.value === search.sort)?.label ?? 'Recentes'}
+              </button>
+              {sortOpen && (
+                <div className="absolute right-0 top-8 z-20 min-w-44 border border-border bg-card p-2 shadow-[0_18px_45px_rgba(0,0,0,0.35)]" role="menu">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={cn(
+                        'block w-full px-3 py-2 text-left text-sm font-bold transition hover:bg-[#2a160f] hover:text-primarySoft',
+                        search.sort === option.value ? 'text-primary' : 'text-[#a18a78]',
+                      )}
+                      role="menuitem"
+                      onClick={() => {
+                        setSortOpen(false)
+                        updateSearch({ sort: option.value })
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <form className="mt-5 flex max-w-md overflow-hidden rounded-sm border border-border bg-[#160b08]" onSubmit={(event) => {
+          <form className="mt-5 flex max-w-xl flex-wrap gap-3" onSubmit={(event) => {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
             updateSearch({ q: String(form.get('q') ?? '') })
           }}>
-            <input
-              name="q"
-              defaultValue={search.q}
-              className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
-              placeholder="Buscar por NFT, criador ou colecao"
-            />
-            <Button type="submit" className="rounded-none">
-              <Search size={15} />
-              Buscar
-            </Button>
+            <div className="flex min-w-0 flex-1 overflow-hidden rounded-sm border border-border bg-[#160b08]">
+              <input
+                name="q"
+                defaultValue={search.q}
+                className="min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-[#9a806a]"
+                placeholder="Buscar por NFT, criador ou colecao"
+              />
+              <Button type="submit" className="rounded-none">
+                <Search size={15} />
+                Buscar
+              </Button>
+            </div>
+            {hasActiveFilters && (
+              <Button type="button" variant="secondary" onClick={clearFilters}>
+                Limpar
+              </Button>
+            )}
           </form>
 
           {isError ? (
@@ -284,10 +438,10 @@ export function HomePage() {
                 <div key={index} className="aspect-[0.78] animate-pulse bg-card" />
               ))}
             </div>
-          ) : marketItems.length ? (
+          ) : apiItems.length ? (
             <div className="mt-7 grid gap-x-9 gap-y-14 sm:grid-cols-2 xl:grid-cols-[repeat(3,250px)] xl:justify-between">
-              {marketItems.map((nft, index) => (
-                <MarketCard key={`${nft.id}-${index}`} nft={nft} index={index} />
+              {apiItems.map((nft, index) => (
+                <MarketCard key={nft.id} nft={nft} index={(search.page - 1) * 9 + index} />
               ))}
             </div>
           ) : (
@@ -298,7 +452,17 @@ export function HomePage() {
           )}
 
           <div className="mt-16 flex justify-end gap-2">
-            {Array.from({ length: data?.totalPages ?? 1 }, (_, index) => index + 1).map((page) => (
+            {visiblePages[0] > 1 && (
+              <button
+                type="button"
+                className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
+                aria-label="Voltar paginas"
+                onClick={() => updateSearch({ page: visiblePages[0] - 1 })}
+              >
+                <ChevronLeft size={15} />
+              </button>
+            )}
+            {visiblePages.map((page) => (
               <button
                 key={page}
                 type="button"
@@ -308,9 +472,16 @@ export function HomePage() {
                 {page}
               </button>
             ))}
-            <button type="button" className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a]" onClick={() => updateSearch({ page: Math.min((data?.totalPages ?? 1), search.page + 1) })}>
-              <ChevronRight size={15} />
-            </button>
+            {visiblePages.at(-1)! < totalPages && (
+              <button
+                type="button"
+                className="grid size-8 place-items-center rounded-sm border border-border text-[#9a806a] transition hover:border-primary hover:text-primarySoft"
+                aria-label="Avancar paginas"
+                onClick={() => updateSearch({ page: visiblePages.at(-1)! + 1 })}
+              >
+                <ChevronRight size={15} />
+              </button>
+            )}
           </div>
           {isFetching && !isLoading && <p className="mt-3 text-right text-xs font-bold text-primarySoft">Atualizando catalogo...</p>}
         </div>
@@ -450,20 +621,6 @@ function MobileHomePage({
         ))}
       </nav>
 
-      <label className="mt-4 block text-xs font-black uppercase tracking-[0.14em] text-primarySoft" htmlFor="mobile-rarity">
-        Raridade
-      </label>
-      <select
-        id="mobile-rarity"
-        value={search.rarity}
-        onChange={(event) => onSearch({ rarity: event.target.value })}
-        className="mt-2 h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary"
-      >
-        {rarityOptions.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-
       {isError ? (
         <div className="mt-8 rounded-2xl bg-card p-5 text-center text-sm text-[#d1b38f]">
           Nao foi possivel carregar o catalogo.
@@ -529,7 +686,7 @@ function MobileBottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-[94px] max-w-md items-center justify-around rounded-t-[28px] bg-card px-7 text-[#dfb98c] shadow-[0_-18px_50px_rgba(0,0,0,0.3)]">
-      <Link to="/" search={{ q: '', rarity: 'todos', sort: 'recentes', page: 1 }} aria-label="Inicio">
+      <Link to="/" search={{ q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }} aria-label="Inicio">
         <Home size={22} className="fill-current" />
       </Link>
       <button type="button" aria-label="Favoritos" onClick={() => runProtected(() => undefined)}>

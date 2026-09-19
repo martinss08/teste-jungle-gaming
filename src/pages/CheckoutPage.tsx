@@ -8,7 +8,7 @@ import { cn } from '../lib/utils'
 import { useCart } from '../modules/cart/useCart'
 import { type CheckoutFlow, type CollectorForm, useCheckoutFlow, walletProviders } from '../modules/checkout/useCheckoutFlow'
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 const inputClass =
   'h-10 w-full min-w-0 max-w-full rounded-sm border border-border bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-[#a98461] focus:border-primary aria-[invalid=true]:border-red-400'

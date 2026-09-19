@@ -58,6 +58,7 @@ const defaultScenario: MockScenario = {
   latencyMs: 120,
   jitterMs: 180,
   failNext: false,
+  failNextCount: 0,
   forceSessionExpired: false,
   paymentResult: 'confirmado',
   quoteChanged: false,

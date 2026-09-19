@@ -56,7 +56,10 @@ export type NftListParams = {
   q?: string
   rarity?: Rarity | 'todos'
   collection?: string
+  category?: string
   network?: string
+  minPrice?: string
+  maxPrice?: string
   sort?: 'recentes' | 'preco-menor' | 'preco-maior'
   page?: number
   pageSize?: number
@@ -255,6 +258,7 @@ export type MockScenario = {
   latencyMs: number
   jitterMs: number
   failNext: boolean
+  failNextCount?: number
   forceSessionExpired: boolean
   paymentResult: 'confirmado' | 'recusado' | 'pendente'
   // Tempo ate o pagamento pendente ser liquidado com `paymentResult`.

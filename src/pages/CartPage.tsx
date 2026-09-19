@@ -8,7 +8,7 @@ import { formatEth } from '../lib/eth'
 import type { Nft } from '../types'
 import { useCart } from '../modules/cart/useCart'
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 function BenefitsSignup() {
   return (

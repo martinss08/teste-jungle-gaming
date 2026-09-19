@@ -15,7 +15,7 @@ import type { FavoriteResponse } from '../contracts/api'
 import { useProtectedAction } from '../modules/auth/useProtectedAction'
 import { keepNewer } from '../modules/realtime/cache'
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 type PurchaseState = {
   remaining: number

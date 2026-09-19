@@ -14,7 +14,7 @@ const links = [
   { to: '/carteiras', label: 'Aprenda' },
 ] as const
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 type AuthMode = 'login' | 'register'
 
 export function AppShell() {
@@ -26,8 +26,22 @@ export function AppShell() {
   const { session, isAuthenticated, logout } = useAuth()
   const { status: realtimeStatus } = useRealtime()
   const [announcement, setAnnouncement] = useState('')
+  const [hash, setHash] = useState(() => window.location.hash)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const isMarket = pathname.startsWith('/nft/')
+  const realtimeAnnouncement =
+    realtimeStatus === 'connected'
+      ? 'Atualizacoes em tempo real conectadas.'
+      : realtimeStatus === 'reconnecting'
+        ? 'Reconectando atualizacoes em tempo real.'
+        : ''
+  const isHome = pathname === '/' && hash !== '#catalogo'
+  const isMarket = pathname.startsWith('/nft/') || (pathname === '/' && hash === '#catalogo')
+
+  useEffect(() => {
+    const handleHashChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
 
   useEffect(() => {
     const handleAuthRequired = (event: Event) => {
@@ -40,11 +54,6 @@ export function AppShell() {
     window.addEventListener('kurio:auth-required', handleAuthRequired)
     return () => window.removeEventListener('kurio:auth-required', handleAuthRequired)
   }, [pathname])
-
-  useEffect(() => {
-    if (realtimeStatus === 'connected') setAnnouncement('Atualizacoes em tempo real conectadas.')
-    if (realtimeStatus === 'reconnecting') setAnnouncement('Reconectando atualizacoes em tempo real.')
-  }, [realtimeStatus])
 
   useEffect(() => {
     const handleRealtime = (event: Event) => {
@@ -67,7 +76,7 @@ export function AppShell() {
         Pular para o conteudo principal
       </a>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {announcement}
+        {announcement || realtimeAnnouncement}
       </div>
       <header className="hidden bg-[#110907]/94 backdrop-blur-xl md:sticky md:top-0 md:z-40 md:block">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between border-b border-border/70 px-4 sm:px-6 lg:px-[120px]">
@@ -79,19 +88,21 @@ export function AppShell() {
             <Link
               to="/"
               search={homeSearch}
-              className="border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/62 transition hover:text-primarySoft"
-              activeProps={{ className: 'border-primary text-primary' }}
+              className={cn(
+                'border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft',
+                isHome ? 'border-primary text-primary' : 'border-transparent text-foreground/62',
+              )}
             >
               Inicio
             </Link>
-            <a href="/#catalogo" className={cn('border-b-2 py-5 font-display text-sm font-bold transition hover:text-primarySoft', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/62')}>
+            <a href="/#catalogo" className={cn('border-b-2 py-5 font-display text-sm font-bold transition hover:border-primary/60 hover:text-primarySoft', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/62')}>
               Mercado
             </a>
             {links.slice(1).map((link) => (
               <Link
                 key={link.label}
                 to={link.to}
-                className="border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/62 transition hover:text-primarySoft"
+                className="border-b-2 border-transparent py-5 font-display text-sm font-bold text-foreground/62 transition hover:border-primary/60 hover:text-primarySoft"
                 activeProps={{ className: 'border-primary text-primary' }}
               >
                 {link.label}
@@ -144,14 +155,14 @@ export function AppShell() {
             <Link
               to="/"
               search={homeSearch}
-              className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted"
+              className={cn('border-b-2 px-3 py-2 text-sm font-medium hover:bg-muted', isHome ? 'border-primary text-primary' : 'border-transparent text-foreground/80')}
               onClick={() => setOpen(false)}
             >
               Inicio
             </Link>
             <a
               href="/#catalogo"
-              className={cn('rounded-md px-3 py-2 text-sm font-medium hover:bg-muted', isMarket ? 'text-primary' : 'text-foreground/80')}
+              className={cn('border-b-2 px-3 py-2 text-sm font-medium hover:bg-muted', isMarket ? 'border-primary text-primary' : 'border-transparent text-foreground/80')}
               onClick={() => setOpen(false)}
             >
               Mercado
@@ -160,7 +171,8 @@ export function AppShell() {
               <Link
                 key={link.label}
                 to={link.to}
-                className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted"
+                className="border-b-2 border-transparent px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted"
+                activeProps={{ className: 'border-primary text-primary' }}
                 onClick={() => setOpen(false)}
               >
                 {link.label}

@@ -55,8 +55,11 @@ export const handlers = [
     const wait = state.scenario.latencyMs + Math.floor(Math.random() * state.scenario.jitterMs)
     await delay(wait)
 
-    if (state.scenario.failNext) {
-      setScenario({ failNext: false })
+    if (state.scenario.failNext || (state.scenario.failNextCount ?? 0) > 0) {
+      setScenario({
+        failNext: false,
+        failNextCount: Math.max(0, (state.scenario.failNextCount ?? 0) - 1),
+      })
       return apiError('TRANSIENT_FAILURE', 'Falha transitoria simulada.', 503)
     }
 
@@ -148,7 +151,10 @@ export const handlers = [
     const q = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
     const rarity = url.searchParams.get('rarity') as Rarity | 'todos' | null
     const collection = url.searchParams.get('collection')
+    const category = url.searchParams.get('category')
     const network = url.searchParams.get('network')
+    const minPrice = cleanPriceParam(url.searchParams.get('minPrice'))
+    const maxPrice = cleanPriceParam(url.searchParams.get('maxPrice'))
     const sort = url.searchParams.get('sort') ?? 'recentes'
     const page = positiveNumber(url.searchParams.get('page'), 1)
     const pageSize = positiveNumber(url.searchParams.get('pageSize'), 6)
@@ -158,11 +164,15 @@ export const handlers = [
         !q ||
         nft.title.toLowerCase().includes(q) ||
         nft.creator.toLowerCase().includes(q) ||
-        nft.collection.toLowerCase().includes(q)
+        nft.collection.toLowerCase().includes(q) ||
+        nft.category.toLowerCase().includes(q)
       const matchesRarity = !rarity || rarity === 'todos' || nft.rarity === rarity
       const matchesCollection = !collection || nft.collection === collection
+      const matchesCategory = !category || category === 'todos' || nft.category === category
       const matchesNetwork = !network || nft.network === network
-      return matchesQuery && matchesRarity && matchesCollection && matchesNetwork
+      const matchesMinPrice = !minPrice || compareEth(nft.priceEth, minPrice) >= 0
+      const matchesMaxPrice = !maxPrice || compareEth(nft.priceEth, maxPrice) <= 0
+      return matchesQuery && matchesRarity && matchesCollection && matchesCategory && matchesNetwork && matchesMinPrice && matchesMaxPrice
     })
 
     items = [...items].sort((a, b) => {
@@ -563,6 +573,10 @@ function availabilityMessage(available: number, inCart: number) {
 
 function apiError(code: ApiErrorCode, message: string, status: number, fields?: Record<string, string>) {
   return HttpResponse.json({ error: { code, message, fields } }, { status })
+}
+
+function cleanPriceParam(value: string | null) {
+  return value?.trim().replace(/^"|"$/g, '') ?? ''
 }
 
 function validateRegister(body: RegisterRequest) {

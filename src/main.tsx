@@ -49,14 +49,23 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFoundPage,
 })
 
+function searchString(value: unknown, fallback = '') {
+  if (typeof value === 'number') return String(value)
+  if (typeof value !== 'string') return fallback
+  return value.replace(/^"|"$/g, '')
+}
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: HomePage,
   validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === 'string' ? search.q : '',
-    rarity: typeof search.rarity === 'string' ? search.rarity : 'todos',
-    sort: typeof search.sort === 'string' ? search.sort : 'recentes',
+    q: searchString(search.q),
+    rarity: searchString(search.rarity, 'todos'),
+    category: searchString(search.category, 'todos'),
+    minPrice: searchString(search.minPrice),
+    maxPrice: searchString(search.maxPrice),
+    sort: searchString(search.sort, 'recentes'),
     page: Number(search.page || 1),
   }),
 })

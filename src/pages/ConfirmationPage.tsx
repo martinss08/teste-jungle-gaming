@@ -12,7 +12,7 @@ import { getOrder } from '../modules/checkout/api'
 import { keepNewer } from '../modules/realtime/cache'
 import { useRealtime } from '../modules/realtime/useRealtime'
 
-const homeSearch = { q: '', rarity: 'todos', sort: 'recentes', page: 1 }
+const homeSearch = { q: '', rarity: 'todos', category: 'todos', minPrice: '', maxPrice: '', sort: 'recentes', page: 1 }
 
 const statusContent = {
   pendente: {
