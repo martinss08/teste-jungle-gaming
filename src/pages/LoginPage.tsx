@@ -66,7 +66,7 @@ export function AuthModalPage({
     <Dialog
       labelledBy="auth-title"
       onClose={close}
-      className="relative min-h-[calc(100dvh-24px)] w-full max-w-[414px] overflow-hidden rounded-[34px] bg-[#100805] font-mono text-[#f8ead6] shadow-[0_22px_70px_rgba(0,0,0,0.42)] md:min-h-0 md:max-w-[500px] md:rounded-b-md md:border-b-8 md:border-[#dc8f4c] md:bg-[#25120d]"
+      className="relative w-full max-w-[414px] overflow-hidden rounded-[28px] bg-[#100805] font-mono text-[#f8ead6] shadow-[0_22px_70px_rgba(0,0,0,0.42)] md:min-h-0 md:max-w-[500px] md:rounded-b-md md:border-b-8 md:border-[#dc8f4c] md:bg-[#25120d]"
     >
       <button
         type="button"
@@ -77,11 +77,11 @@ export function AuthModalPage({
         <X size={20} />
       </button>
 
-      <div className="flex min-h-[calc(100dvh-24px)] flex-col px-7 pb-6 pt-[112px] md:min-h-0 md:px-20 md:pb-12 md:pt-14">
+      <div className="flex flex-col px-6 pb-7 pt-12 md:px-20 md:pb-12 md:pt-14">
         <div className="text-center font-display text-[2rem] font-black uppercase tracking-[0.12em] text-[#f8ead6] md:hidden">
           Kurio
         </div>
-        <h2 id="auth-title" className="mt-[84px] text-center font-display text-xl font-black tracking-[0.08em] text-[#f8ead6] md:hidden">
+        <h2 id="auth-title" className="mt-7 text-center font-display text-xl font-black tracking-[0.08em] text-[#f8ead6] md:hidden">
           {title}
         </h2>
 
@@ -100,7 +100,7 @@ export function AuthModalPage({
           </p>
         )}
 
-        <form key={mode} className="mt-9 grid gap-3 md:mt-7" noValidate onSubmit={authForm.handleSubmit}>
+        <form key={mode} className="mt-6 grid gap-3 md:mt-7" noValidate onSubmit={authForm.handleSubmit}>
           {isRegister && <AuthModalInput name="name" label="Nome" placeholder="Nome de usuario" autoComplete="name" maxLength={60} error={authForm.errors.name} />}
           <AuthModalInput
             name="email"
@@ -133,7 +133,7 @@ export function AuthModalPage({
 
           <button
             type="submit"
-            className="mt-8 h-[60px] rounded-[9px] bg-[#dc8f4c] text-base font-black tracking-[0.04em] text-[#090403] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 md:mt-6 md:h-[52px]"
+            className="mt-5 h-[52px] rounded-[9px] bg-[#dc8f4c] text-base font-black tracking-[0.04em] text-[#090403] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 md:mt-6 md:h-[52px]"
             disabled={authForm.isSubmitting}
           >
             {authForm.isSubmitting ? 'Aguarde...' : submitLabel}
@@ -143,13 +143,13 @@ export function AuthModalPage({
           )}
         </form>
 
-        <div className="mt-11 flex items-center gap-3 md:mx-[-5rem] md:mt-8">
+        <div className="mt-7 flex items-center gap-3 md:mx-[-5rem] md:mt-8">
           <span className="h-px flex-1 bg-[#4c261b]" />
           <span className="text-xs tracking-[0.04em] text-[#f8ead6]">Ou continue com</span>
           <span className="h-px flex-1 bg-[#4c261b]" />
         </div>
 
-        <div className="mt-5 grid gap-4">
+        <div className="mt-4 grid gap-3">
           <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] transition hover:border-[#dc8f4c]">
             <GoogleMark />
             Continuar com Google
@@ -160,7 +160,7 @@ export function AuthModalPage({
           </button>
         </div>
 
-        <div className="mt-auto pt-10 text-center text-sm tracking-[0.04em] text-[#ceb18f] md:hidden">
+        <div className="mt-7 text-center text-sm tracking-[0.04em] text-[#ceb18f] md:hidden">
           {isRegister ? (
             <>
               Ja tem uma conta?{' '}
