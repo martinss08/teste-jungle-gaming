@@ -97,6 +97,12 @@ export const handlers = [
     return HttpResponse.json(session)
   }),
 
+  http.get('/api/auth/email-available', ({ request }) => {
+    const email = new URL(request.url).searchParams.get('email')?.trim().toLowerCase() ?? ''
+    const taken = getState().users.some((user) => user.email === email)
+    return HttpResponse.json({ email, available: !taken })
+  }),
+
   http.post('/api/auth/register', async ({ request }) => {
     const body = await request.json() as RegisterRequest
     const fields = validateRegister(body)
@@ -677,7 +683,9 @@ function cleanPriceParam(value: string | null) {
 
 function validateRegister(body: RegisterRequest) {
   const fields: Record<string, string> = {}
-  if (!body.name || body.name.trim().length < 2) fields.name = 'Informe pelo menos 2 caracteres.'
+  if (!body.name || body.name.trim().length < 2 || body.name.trim().length > 60) {
+    fields.name = 'Informe de 2 a 60 caracteres.'
+  }
   if (!body.email || !body.email.includes('@')) fields.email = 'Informe um e-mail valido.'
   if (!body.password || body.password.length < 6) fields.password = 'Informe pelo menos 6 caracteres.'
   return fields

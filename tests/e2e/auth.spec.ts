@@ -35,7 +35,7 @@ test('cadastro valida conflito e sessao expirada redireciona', async ({ page }) 
   await page.locator('input[name="email"]').fill(user.email)
   await page.locator('input[name="password"]').fill('greenmint')
   await page.locator('input[name="confirm"]').fill('greenmint')
-  await page.locator('form').getByRole('button', { name: /Criar perfil/i }).click()
+  await page.locator('form').getByRole('button', { name: /Criar conta/i }).click()
   await expect(page.getByRole('alert')).toContainText(/ja existe/i)
   await expect(page.locator('#auth-email-error')).toContainText(/ja cadastrado/i)
 
@@ -52,7 +52,7 @@ test('cadastro cria conta e entra no fluxo', async ({ page }) => {
   await page.locator('input[name="email"]').fill('nova@greenmint.dev')
   await page.locator('input[name="password"]').fill('segredo1')
   await page.locator('input[name="confirm"]').fill('segredo1')
-  await page.locator('form').getByRole('button', { name: /Criar perfil/i }).click()
+  await page.locator('form').getByRole('button', { name: /Criar conta/i }).click()
   await expect(page).toHaveURL(/\/perfil/)
   await expect(page.locator('#profile-name')).toHaveValue('Nova Colecionadora')
 })
@@ -92,4 +92,15 @@ test('troca de usuario pela interface nao expoe dados da conta anterior', async 
 
   await page.goto('/carrinho')
   await expect(page.locator('h2:visible', { hasText: /Onyx Visual/i })).toBeVisible()
+})
+
+test('cadastro avisa e-mail ja usado ao sair do campo', async ({ page }) => {
+  await page.goto('/cadastro')
+  await page.locator('input[name="email"]').fill(user.email)
+  await page.locator('input[name="name"]').click()
+  await expect(page.locator('#auth-email-error')).toHaveText(/ja cadastrado/i)
+
+  await page.locator('input[name="email"]').fill('disponivel@greenmint.dev')
+  await page.locator('input[name="name"]').click()
+  await expect(page.locator('#auth-email-error')).toHaveCount(0)
 })

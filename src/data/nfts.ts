@@ -1,10 +1,10 @@
 import type { Nft, Wallet } from '../types'
 
-import apeEmerald from '../assets/kurio-ape-0.png'
-import apeEmeraldDetail from '../assets/kurio-ape-emerald-detail.png'
-import apeSage from '../assets/kurio-ape-1.png'
-import apeOnyx from '../assets/kurio-ape-2.png'
-import apeGolden from '../assets/kurio-ape-3.png'
+import apeEmerald from '../assets/kurio-ape-0.webp'
+import apeEmeraldDetail from '../assets/kurio-ape-emerald-detail.webp'
+import apeSage from '../assets/kurio-ape-1.webp'
+import apeOnyx from '../assets/kurio-ape-2.webp'
+import apeGolden from '../assets/kurio-ape-3.webp'
 
 type NftFixture = Omit<Nft, 'listedAt'>
 

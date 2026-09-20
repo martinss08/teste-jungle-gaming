@@ -35,7 +35,7 @@ test('avatar enviado pela interface valida o arquivo e persiste apos refresh', a
   await fileInput.setInputFiles({ name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from('nao e imagem') })
   await expect(status).toHaveText(/Envie uma imagem PNG, JPEG ou WebP/i)
 
-  await fileInput.setInputFiles('src/assets/kurio-ape-1.png')
+  await fileInput.setInputFiles('src/assets/kurio-ape-1.webp')
   await expect(status).toHaveText('Avatar atualizado.')
   const avatar = page.getByAltText(/Avatar de Julia Monteiro/i)
   await expect(avatar).toHaveAttribute('src', /^data:image\/jpeg;base64,/)

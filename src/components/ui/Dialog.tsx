@@ -26,7 +26,10 @@ export function Dialog({ labelledBy, onClose, children, placement = 'center', cl
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
     const panel = panelRef.current
-    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
+    // Elementos ocultos (`hidden`, `md:hidden`) ainda casam com o seletor, mas nao recebem foco:
+    // mante-los na lista faria o Tab escapar do dialogo ao chegar no ultimo item visivel.
+    const focusables = () =>
+      Array.from(panel?.querySelectorAll<HTMLElement>(focusableSelector) ?? []).filter((element) => element.getClientRects().length > 0)
     const initial = panel?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled])') ?? focusables()[0]
     ;(initial ?? panel)?.focus({ preventScroll: true })
 

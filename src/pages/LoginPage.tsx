@@ -1,4 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
+import { api } from '../lib/api'
 import { Eye, EyeOff, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Dialog } from '../components/ui/Dialog'
@@ -21,7 +22,9 @@ function validateAuthForm(register: boolean, values: Record<AuthField, string>):
   for (const field of Object.keys(values) as AuthField[]) {
     if (values[field].length > 200) errors[field] = 'Use no maximo 200 caracteres.'
   }
-  if (register && values.name.trim().length < 2) errors.name = 'Informe pelo menos 2 caracteres.'
+  if (register && (values.name.trim().length < 2 || values.name.trim().length > 60)) {
+    errors.name = 'Informe de 2 a 60 caracteres.'
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) errors.email = 'Informe um e-mail valido.'
   if (register ? values.password.length < 6 : !values.password) {
     errors.password = register ? 'Informe pelo menos 6 caracteres.' : 'Informe sua senha.'
@@ -49,8 +52,11 @@ export function AuthModalPage({
   const navigate = useNavigate()
   const redirectValue = redirect ?? getAuthRedirectSearch().redirect
   const redirectSearch = { redirect: redirectValue }
-  const title = isRegister ? 'Criar perfil de colecionador' : 'Entrar'
-  const submitLabel = isRegister ? 'Criar perfil' : 'Entrar'
+  const title = isRegister ? 'Criar conta' : 'Entrar'
+  const submitLabel = isRegister ? 'Criar conta' : 'Entrar'
+  const subtitle = isRegister
+    ? 'Crie sua conta para comprar NFTs, salvar favoritos e acompanhar seus pedidos.'
+    : 'Entre para gerenciar sua carteira, colecao e perfil de criador.'
   const close = () => (onClose ? onClose() : void navigateFromAuthClose(navigate))
   const switchMode = (nextMode: AuthMode) => {
     if (onModeChange) onModeChange(nextMode)
@@ -64,20 +70,29 @@ export function AuthModalPage({
     >
       <button
         type="button"
-        className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full border border-border bg-[#1d100b] text-[#dc8f4c] transition hover:text-primary"
+        className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full border border-border bg-[#1d100b] text-[#dc8f4c] transition hover:text-primary md:border-transparent md:bg-transparent"
         aria-label="Fechar"
         onClick={close}
       >
         <X size={20} />
       </button>
 
-      <div className="flex min-h-[calc(100dvh-24px)] flex-col px-7 pb-6 pt-[112px] md:min-h-0 md:px-20 md:pb-12 md:pt-20">
-        <div className="text-center font-display text-[2rem] font-black uppercase tracking-[0.12em] text-[#f8ead6]">
+      <div className="flex min-h-[calc(100dvh-24px)] flex-col px-7 pb-6 pt-[112px] md:min-h-0 md:px-20 md:pb-12 md:pt-14">
+        <div className="text-center font-display text-[2rem] font-black uppercase tracking-[0.12em] text-[#f8ead6] md:hidden">
           Kurio
         </div>
-        <h2 id="auth-title" className="mt-[84px] text-center font-display text-xl font-black tracking-[0.08em] text-[#f8ead6] md:mt-14">
+        <h2 id="auth-title" className="mt-[84px] text-center font-display text-xl font-black tracking-[0.08em] text-[#f8ead6] md:hidden">
           {title}
         </h2>
+
+        <div className="hidden md:block">
+          <div className="flex items-center justify-center gap-4 font-display text-xl font-black tracking-[0.08em]">
+            <AuthTab mode="login" current={mode} redirectSearch={redirectSearch} onModeChange={onModeChange}>Entrar</AuthTab>
+            <span className="h-6 w-px bg-[#4c261b]" aria-hidden="true" />
+            <AuthTab mode="register" current={mode} redirectSearch={redirectSearch} onModeChange={onModeChange}>Criar conta</AuthTab>
+          </div>
+          <p className="mx-auto mt-6 max-w-[330px] text-center text-sm leading-6 tracking-[0.04em] text-[#ceb18f]">{subtitle}</p>
+        </div>
 
         {sessionExpired && (
           <p role="status" className="mx-auto mt-6 max-w-[360px] rounded-sm border border-[#dc8f4c] bg-[#3a1d09] p-3 text-center text-sm">
@@ -86,7 +101,7 @@ export function AuthModalPage({
         )}
 
         <form key={mode} className="mt-9 grid gap-3 md:mt-7" noValidate onSubmit={authForm.handleSubmit}>
-          {isRegister && <AuthModalInput name="name" label="Nome" placeholder="Nome de usuario" autoComplete="name" error={authForm.errors.name} />}
+          {isRegister && <AuthModalInput name="name" label="Nome" placeholder="Nome de usuario" autoComplete="name" maxLength={60} error={authForm.errors.name} />}
           <AuthModalInput
             name="email"
             type="email"
@@ -94,6 +109,7 @@ export function AuthModalPage({
             placeholder={isRegister ? 'Digite seu e-mail' : 'contato@email.com'}
             autoComplete="email"
             error={authForm.errors.email}
+            onBlur={isRegister ? authForm.checkEmailAvailable : undefined}
           />
           <AuthModalInput
             name="password"
@@ -135,16 +151,16 @@ export function AuthModalPage({
 
         <div className="mt-5 grid gap-4">
           <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] transition hover:border-[#dc8f4c]">
-            <span className="text-xl font-black text-[#4285f4]" aria-hidden="true">G</span>
+            <GoogleMark />
             Continuar com Google
           </button>
           <button type="button" className="flex h-10 items-center justify-center gap-4 rounded-[5px] border border-[#4c261b] bg-transparent text-sm font-black tracking-[0.04em] text-[#ceb18f] transition hover:border-[#dc8f4c]">
-            <span className="text-2xl font-black text-[#4267b2]" aria-hidden="true">f</span>
+            <FacebookMark />
             Continuar com Facebook
           </button>
         </div>
 
-        <div className="mt-auto pt-10 text-center text-sm tracking-[0.04em] text-[#ceb18f] md:pt-8">
+        <div className="mt-auto pt-10 text-center text-sm tracking-[0.04em] text-[#ceb18f] md:hidden">
           {isRegister ? (
             <>
               Ja tem uma conta?{' '}
@@ -178,6 +194,59 @@ export function AuthModalPage({
   )
 }
 
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-5 shrink-0" aria-hidden="true" focusable="false">
+      <path fill="#4285f4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.1-3.8 6.6-9.4 6.6-16.3z" />
+      <path fill="#34a853" d="M24 46c5.9 0 10.9-2 14.5-5.2l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.3 15.5 46 24 46z" />
+      <path fill="#fbbc05" d="M11.8 28.4c-.4-1.3-.7-2.7-.7-4.4s.3-3 .7-4.4v-5.7H4.5C2.9 17 2 20.4 2 24s.9 7 2.5 10.1l7.3-5.7z" />
+      <path fill="#ea4335" d="M24 10.6c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.1 29.9 2 24 2 15.5 2 8.1 6.7 4.5 13.9l7.3 5.7c1.7-5.2 6.5-9 12.2-9z" />
+    </svg>
+  )
+}
+
+function FacebookMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5 shrink-0" aria-hidden="true" focusable="false">
+      <path
+        fill="#4267b2"
+        d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"
+      />
+    </svg>
+  )
+}
+
+function AuthTab({
+  mode,
+  current,
+  redirectSearch,
+  onModeChange,
+  children,
+}: {
+  mode: AuthMode
+  current: AuthMode
+  redirectSearch: { redirect: string }
+  onModeChange?: (mode: AuthMode) => void
+  children: string
+}) {
+  const isCurrent = mode === current
+  const className = cn('transition', isCurrent ? 'text-[#dc8f4c]' : 'text-[#f8ead6] hover:text-[#dc8f4c]')
+
+  if (isCurrent) return <span className={className} aria-current="page">{children}</span>
+  if (onModeChange) {
+    return (
+      <button type="button" className={className} onClick={() => onModeChange(mode)}>
+        {children}
+      </button>
+    )
+  }
+  return (
+    <Link to={mode === 'register' ? '/cadastro' : '/login'} search={redirectSearch} className={className}>
+      {children}
+    </Link>
+  )
+}
+
 function AuthModalInput({
   name,
   label,
@@ -185,7 +254,9 @@ function AuthModalInput({
   type = 'text',
   autoComplete,
   highlighted = false,
+  maxLength = 200,
   error,
+  onBlur,
 }: {
   name: AuthField
   label: string
@@ -193,7 +264,9 @@ function AuthModalInput({
   type?: string
   autoComplete?: string
   highlighted?: boolean
+  maxLength?: number
   error?: string
+  onBlur?: (value: string) => void
 }) {
   const [visible, setVisible] = useState(false)
   const isPassword = type === 'password'
@@ -207,11 +280,12 @@ function AuthModalInput({
           id={id}
           type={isPassword && visible ? 'text' : type}
           name={name}
-          maxLength={200}
+          maxLength={maxLength}
           placeholder={placeholder}
           autoComplete={autoComplete}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
+          onBlur={onBlur ? (event) => onBlur(event.target.value) : undefined}
           className={cn(
             'h-[50px] w-full rounded-[9px] border border-[#4c261b] bg-transparent px-4 text-sm tracking-[0.04em] text-[#f8ead6] placeholder:text-[#b9966d] outline-none focus:border-[#dc8f4c] aria-[invalid=true]:border-red-400 md:h-11 md:rounded-[5px]',
             highlighted && 'border-[#dc8f4c]',
@@ -271,7 +345,19 @@ function useAuthForm(register: boolean, redirectOverride?: string, onSuccess?: (
     }
   }
 
-  return { handleSubmit, error, errors, isSubmitting }
+  // Aviso antecipado: o cadastro continua validando o conflito no envio (409).
+  const checkEmailAvailable = async (value: string) => {
+    const email = value.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    try {
+      const { data } = await api.get<{ available: boolean }>('/auth/email-available', { params: { email } })
+      setErrors((current) => ({ ...current, email: data.available ? undefined : 'E-mail ja cadastrado.' }))
+    } catch {
+      // Sem conexao a checagem e ignorada; o envio ainda trata o conflito.
+    }
+  }
+
+  return { handleSubmit, error, errors, isSubmitting, checkEmailAvailable }
 }
 
 async function navigateToRedirect(navigate: ReturnType<typeof useNavigate>, redirectOverride?: string) {
