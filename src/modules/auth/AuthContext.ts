@@ -12,6 +12,8 @@ export type AuthContextValue = {
   logout: () => Promise<void>
   // Sessao recusada pela API (401): descarta token e cache privado sem chamar o logout remoto.
   expireSession: () => void
+  // Fecha apenas o aviso visual de sessao expirada.
+  dismissSessionExpired: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

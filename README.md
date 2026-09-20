@@ -2,6 +2,9 @@
 
 Implementacao do desafio frontend da Jungle Gaming: um marketplace de NFTs em React e TypeScript com catalogo, detalhe, favoritos, carrinho, checkout, confirmacao de pedido, autenticacao, perfil, carteiras, mocks REST, tempo real e testes E2E.
 
+Aplicacao publicada: 
+[https://teste-jungle-gaming.netlify.app/](https://teste-jungle-gaming.netlify.app/)
+
 - [Como rodar](#como-rodar)
 - [Comandos](#comandos)
 - [Variaveis de ambiente](#variaveis-de-ambiente)
@@ -19,6 +22,8 @@ Implementacao do desafio frontend da Jungle Gaming: um marketplace de NFTs em Re
 Pre-requisito: Node.js 20 ou superior.
 
 ```bash
+git clone <URL_DO_REPOSITORIO>
+cd teste-jungle-gaming
 make setup   # prepara tudo a partir de um checkout limpo
 make dev     # http://localhost:5173
 ```
@@ -191,4 +196,3 @@ O `netlify.toml` ja define build, pasta publicada, cache dos assets e fallback S
 ## Documentacao tecnica
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — contratos, cache, sessao, carrinho, tempo real, decisoes e limitacoes
-- [CHECKLIST_ENTREGA_DECISOES.md](./CHECKLIST_ENTREGA_DECISOES.md) — checklist de entrega e pendencias

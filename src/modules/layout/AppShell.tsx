@@ -24,7 +24,7 @@ export function AppShell() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { itemCount } = useCart()
-  const { session, isAuthenticated, sessionExpired, logout } = useAuth()
+  const { session, isAuthenticated, sessionExpired, logout, dismissSessionExpired } = useAuth()
   const { status: realtimeStatus } = useRealtime()
   const [announcement, setAnnouncement] = useState('')
   const location = useRouterState({ select: (state) => state.location })
@@ -204,11 +204,23 @@ export function AppShell() {
       </header>
 
       {sessionExpired && !isAuthenticated && !authOpen && (
-        <div role="status" className="border-b border-primary/60 bg-[#3a1d09] px-4 py-3 text-center text-sm">
-          Sua sessao expirou.{' '}
-          <button type="button" className="font-bold text-primarySoft underline" onClick={() => openAuth('login')}>
-            Entrar novamente
-          </button>
+        <div role="status" className="border-b border-primary/60 bg-[#3a1d09] px-4 py-3 text-sm">
+          <div className="mx-auto flex max-w-[1440px] items-center justify-center gap-3 px-2">
+            <p className="min-w-0 text-center">
+              Sua sessao expirou.{' '}
+              <button type="button" className="font-bold text-primarySoft underline" onClick={() => openAuth('login')}>
+                Entrar novamente
+              </button>
+            </p>
+            <button
+              type="button"
+              className="grid size-7 shrink-0 place-items-center rounded-full text-primarySoft transition hover:bg-[#2a170f] hover:text-primary"
+              aria-label="Fechar aviso de sessao expirada"
+              onClick={dismissSessionExpired}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
 

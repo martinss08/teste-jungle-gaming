@@ -80,6 +80,21 @@ test('carteira existente e editada, validada e promovida a principal', async ({ 
   await expect(mainForm.getByLabel('Tipo de carteira')).toHaveValue('secundaria')
 })
 
+test('colecao abre detalhes do item sem voltar para pagina de compra', async ({ page }) => {
+  await addCartItem(page, nfts.sage)
+  await setScenario(page, { paymentDelayMs: 100 })
+  await page.goto('/pagamento')
+  await reviewCheckout(page)
+  await page.getByRole('button', { name: /Confirmar compra/i }).click()
+  await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
+
+  await page.goto('/perfil#colecao')
+  await page.getByRole('button', { name: /Sage Hood #804/i }).first().click()
+  await expect(page).toHaveURL(/\/perfil#colecao/)
+  await expect(page.getByRole('dialog', { name: /Sage Hood #804/i })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('img', { name: /Sage Hood #804/i })).toBeVisible()
+})
+
 test('favoritos fazem rollback quando a API falha e recuperam na nova tentativa', async ({ page }) => {
   await page.goto(`/nft/${nfts.sage}`)
   const favorite = page.getByRole('button', { name: /^(Favoritar|Favorito|Remover dos favoritos)$/ })
@@ -207,13 +222,12 @@ test('pedido pendente sobrevive a queda de conexao e refresh ate a confirmacao',
   await reviewCheckout(page)
   await page.getByRole('button', { name: /Confirmar compra/i }).click()
 
-  const pending = page.getByRole('heading', { name: /Aguardando confirmacao/i })
-  await expect(pending).toBeVisible()
   await expect(page).toHaveURL(/pedido=GM-2049/)
+  await expect(page.getByRole('heading', { name: /Aguardando confirmacao/i })).toBeHidden()
 
   await postMock(page, '/api/mock/realtime/disconnect')
   await page.reload()
-  await expect(pending).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Aguardando confirmacao/i })).toBeHidden()
 
   await page.clock.fastForward(60_000)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible()

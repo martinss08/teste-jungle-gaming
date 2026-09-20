@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearch } from '@tanstack/react-router'
-import { CheckCircle2, Clock3, ExternalLink, XCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { XCircle } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '../components/ui/Button'
 import { buttonVariants } from '../components/ui/buttonVariants'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -16,11 +16,6 @@ import { useRealtime } from '../modules/realtime/useRealtime'
 import { defaultCatalogSearch } from '../modules/catalog/search'
 
 const statusContent = {
-  pendente: {
-    icon: <Clock3 className="mx-auto animate-pulse text-primarySoft" size={54} />,
-    title: 'Aguardando confirmacao',
-    description: 'O pagamento foi enviado e esta sendo processado na rede. Esta pagina atualiza sozinha.',
-  },
   recusado: {
     icon: <XCircle className="mx-auto text-red-300" size={54} />,
     title: 'Pagamento recusado',
@@ -106,30 +101,6 @@ function ThankYouIcon() {
   )
 }
 
-function PaymentToast({ orderId }: { orderId: string }) {
-  const [hiddenOrderId, setHiddenOrderId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setHiddenOrderId(orderId), 5000)
-    return () => window.clearTimeout(timeout)
-  }, [orderId])
-
-  if (hiddenOrderId === orderId) return null
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="fixed right-5 top-5 z-[70] flex max-w-[320px] items-center gap-3 border border-primary bg-card px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-    >
-      <CheckCircle2 size={20} className="shrink-0 text-success" />
-      <div>
-        <p className="font-display text-sm font-bold text-foreground">Pagamento confirmado</p>
-        <p className="mt-0.5 font-mono text-xs text-[#caa677]">Seus NFTs foram adicionados a sua carteira.</p>
-      </div>
-    </div>
-  )
-}
-
 function ConfirmedReceipt({ order }: { order: Order }) {
   const dateLabel = new Date(order.createdAt).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -139,7 +110,6 @@ function ConfirmedReceipt({ order }: { order: Order }) {
 
   return (
     <div className="mx-auto max-w-[640px] px-4 py-10">
-      <PaymentToast orderId={order.id} />
       <div className="border-b-8 border-primary bg-card shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
         <div className="px-8 pb-5 pt-7 text-center" role="status" aria-live="polite">
           <ThankYouIcon />
@@ -213,19 +183,10 @@ function ConfirmedReceipt({ order }: { order: Order }) {
           <p className="mx-auto mt-4 max-w-[500px] text-center font-mono text-sm leading-6 text-[#caa677]">
             Transacao confirmada na {order.network}. A propriedade foi transferida para sua carteira conectada e registrada na rede.
           </p>
-          <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-5 flex justify-center">
             <Link to="/perfil" hash="colecao" className={buttonVariants({ className: 'min-w-[190px] font-display text-base font-bold' })}>
               Ver minha colecao
             </Link>
-            <a
-              href={order.explorerUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={buttonVariants({ variant: 'secondary', className: 'min-w-[190px] font-display text-base font-bold' })}
-            >
-              Ver no explorador (simulado)
-              <ExternalLink size={16} />
-            </a>
           </div>
         </div>
       </div>
@@ -293,8 +254,15 @@ export function ConfirmationPage() {
   }
 
   if (order.status === 'confirmado') return <ConfirmedReceipt order={order} />
+  if (order.status === 'pendente') {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10" aria-busy="true">
+        <Skeleton className="h-[420px] rounded-xl" />
+      </div>
+    )
+  }
 
-  const content = statusContent[order.status]
+  const content = statusContent.recusado
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -303,11 +271,6 @@ export function ConfirmationPage() {
           {content.icon}
           <h1 className="mt-4 font-display text-4xl font-bold">{content.title}</h1>
           <p className="mt-2 text-foreground/65">{content.description}</p>
-          {order.status === 'pendente' && (
-            <p className="mt-3 text-xs text-foreground/50">
-              {realtimeStatus === 'connected' ? 'Acompanhando em tempo real.' : 'Reconectando ao tempo real; consultando o pedido periodicamente.'}
-            </p>
-          )}
         </div>
         <Receipt order={order} />
         <div className="flex flex-col gap-3 border-t border-border p-6 sm:flex-row">

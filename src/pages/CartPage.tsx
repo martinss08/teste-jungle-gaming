@@ -340,7 +340,7 @@ function MobileCartPage({ onCheckout }: { onCheckout: () => void }) {
   const canCheckout = useCanCheckout()
 
   return (
-    <div className="min-h-screen bg-[#120906] px-6 pb-8 pt-8 font-mono text-foreground md:hidden">
+    <div className="bg-[#120906] px-6 pb-4 pt-8 font-mono text-foreground md:hidden">
       <header className="grid grid-cols-[44px_1fr_44px] items-center">
         <Link to="/" search={defaultCatalogSearch} className="grid size-9 place-items-center rounded-full border border-border bg-card text-primarySoft" aria-label="Voltar">
           <ArrowLeft size={19} />

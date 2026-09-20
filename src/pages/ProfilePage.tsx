@@ -23,6 +23,7 @@ import { Dialog } from '../components/ui/Dialog'
 import { Skeleton } from '../components/ui/Skeleton'
 import type { OwnedNft, Profile } from '../contracts/api'
 import { coupons } from '../data/coupons'
+import { nfts } from '../data/nfts'
 import { parseApiError } from '../lib/apiError'
 import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
@@ -528,6 +529,81 @@ function WishlistPanel() {
   )
 }
 
+function collectionImageFor(item: OwnedNft) {
+  return nfts.find((nft) => nft.id === item.nftId)?.hero ?? item.imageUrl
+}
+
+function CollectionItemDialog({ item, onClose }: { item: OwnedNft; onClose: () => void }) {
+  const catalogNft = nfts.find((nft) => nft.id === item.nftId)
+  const imageUrl = collectionImageFor(item)
+
+  return (
+    <Dialog
+      labelledBy="collection-item-title"
+      onClose={onClose}
+      className="w-full max-w-3xl overflow-hidden bg-card shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
+    >
+      <div className="grid max-h-[88vh] overflow-y-auto md:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)]">
+        <div className="bg-[#efe7d2]">
+          <img src={imageUrl} alt={item.title} className="h-full min-h-[280px] w-full object-cover" />
+        </div>
+        <div className="min-w-0 p-5 md:p-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primarySoft">Item da sua colecao</p>
+              <h2 id="collection-item-title" className="mt-2 font-display text-2xl font-bold text-[#d3c2b3]">{item.title}</h2>
+              {catalogNft && <p className="mt-1 text-sm text-foreground/55">{catalogNft.collection} · {catalogNft.creator}</p>}
+            </div>
+            <Button type="button" variant="ghost" size="icon" aria-label="Fechar detalhes" onClick={onClose}>
+              <X size={18} />
+            </Button>
+          </div>
+
+          {catalogNft && <p className="mt-5 text-sm leading-6 text-foreground/70">{catalogNft.description}</p>}
+
+          <dl className="mt-6 grid gap-3 border-y border-border py-4 font-mono text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Edicao</dt>
+              <dd className="text-right font-semibold">{item.edition}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Quantidade</dt>
+              <dd className="text-right font-semibold">x {item.quantity}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Compra</dt>
+              <dd className="text-right font-semibold">{new Date(item.purchasedAt).toLocaleDateString('pt-BR')}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Carteira</dt>
+              <dd className="min-w-0 truncate text-right font-semibold" title={item.walletAddress}>{item.walletLabel}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Rede</dt>
+              <dd className="text-right font-semibold">{item.network}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[#caa677]">Pedido</dt>
+              <dd className="break-all text-right font-semibold">{item.orderId}</dd>
+            </div>
+          </dl>
+
+          <div className="mt-5 flex justify-center">
+            <a
+              href={item.explorerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex text-sm font-bold text-primarySoft hover:text-primary"
+            >
+              Ver transacao
+            </a>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 function CollectionPanel({ userId }: { userId: string }) {
   const collectionQuery = useQuery({
     queryKey: ['collection', userId],
@@ -535,6 +611,7 @@ function CollectionPanel({ userId }: { userId: string }) {
     enabled: Boolean(userId),
   })
   const items = collectionQuery.data?.items ?? []
+  const [selectedItem, setSelectedItem] = useState<OwnedNft | null>(null)
 
   return (
     <section className="min-w-0" aria-labelledby="collection-title">
@@ -561,14 +638,16 @@ function CollectionPanel({ userId }: { userId: string }) {
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-3">
-          {items.map((item) => (
+          {items.map((item) => {
+            const imageUrl = collectionImageFor(item)
+            return (
             <article key={`${item.orderId}-${item.nftId}-${item.edition}`} className="min-w-0 bg-card p-2 md:p-5">
-              <Link to="/nft/$nftId" params={{ nftId: item.nftId }} className="group block">
+              <button type="button" className="group block w-full min-w-0 text-left" onClick={() => setSelectedItem(item)}>
                 <div className="aspect-square overflow-hidden rounded-[14px] bg-[#efe7d2] md:rounded-md">
-                  <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
+                  <img src={imageUrl} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
                 </div>
                 <h2 className="mt-2 truncate font-display text-sm font-bold text-[#d3c2b3] md:mt-3 md:text-base">{item.title}</h2>
-              </Link>
+              </button>
               <dl className="mt-2 grid gap-1.5 border-t border-border pt-2 font-mono text-[0.68rem] text-[#caa677] md:mt-3 md:gap-2 md:pt-3 md:text-xs">
                 <div className="flex justify-between gap-3">
                   <dt>Edicao</dt>
@@ -587,18 +666,19 @@ function CollectionPanel({ userId }: { userId: string }) {
                   <dd className="text-right text-foreground">{new Date(item.purchasedAt).toLocaleDateString('pt-BR')}</dd>
                 </div>
               </dl>
-              <a
-                href={item.explorerUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
                 className="mt-3 inline-flex text-xs font-bold text-primarySoft hover:text-primary md:mt-4 md:text-sm"
+                onClick={() => setSelectedItem(item)}
               >
-                Ver transacao
-              </a>
+                Visualizar item
+              </button>
             </article>
-          ))}
+            )
+          })}
         </div>
       )}
+      {selectedItem && <CollectionItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />}
     </section>
   )
 }
@@ -706,7 +786,7 @@ function DownloadsPanel({ userId }: { userId: string }) {
           {items.map((item) => (
             <article key={`${item.orderId}-${item.nftId}-${item.edition}-downloads`} className="grid min-w-0 grid-cols-[82px_minmax(0,1fr)] gap-3 bg-card p-3 md:gap-4 md:p-5 sm:grid-cols-[108px_minmax(0,1fr)]">
               <Link to="/nft/$nftId" params={{ nftId: item.nftId }} className="block overflow-hidden rounded-[14px] bg-[#efe7d2] md:rounded-md">
-                <img src={item.imageUrl} alt={item.title} className="aspect-square h-full w-full object-cover" loading="lazy" />
+                <img src={collectionImageFor(item)} alt={item.title} className="aspect-square h-full w-full object-cover" loading="lazy" />
               </Link>
               <div className="min-w-0">
                 <h2 className="truncate font-display text-sm font-bold text-[#d3c2b3] md:text-base">{item.title}</h2>

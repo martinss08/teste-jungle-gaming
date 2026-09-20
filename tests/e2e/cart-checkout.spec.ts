@@ -65,11 +65,10 @@ test('itens do visitante sao preservados e mesclados ao entrar', async ({ page }
 test('compra completa ate recibo confirmado', async ({ page }) => {
   await loginByApi(page)
   await page.goto(`/nft/${nfts.emerald}`)
-  await page.getByRole('button', { name: /^Comprar$|Adicionar ao carrinho/ }).click()
-  await expect(page.getByRole('status').filter({ hasText: /Adicionado ao carrinho/i })).toBeVisible()
+  await page.getByRole('button', { name: /^Comprar(?: NFT)?$/ }).click()
+  await expect(page).toHaveURL(/\/carrinho/)
   await applyCoupon(page)
 
-  await page.goto('/carrinho')
   await page.getByRole('button', { name: /Conectar e finalizar/i }).click()
   await expect(page).toHaveURL(/\/pagamento/)
 
@@ -79,6 +78,20 @@ test('compra completa ate recibo confirmado', async ({ page }) => {
   await expect(page).toHaveURL(/\/confirmacao/)
   await expect(page.getByRole('heading', { name: /Pedido confirmado/i })).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText('KURIO10', { exact: false }).first()).toBeVisible()
+})
+
+test('adicionar ao carrinho abre painel lateral com acoes', async ({ page }) => {
+  await page.goto(`/nft/${nfts.sage}`)
+  await page.getByRole('button', { name: /Adicionar ao carrinho/i }).click()
+
+  const drawer = page.getByRole('dialog', { name: /Item no carrinho/i })
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByText(/Sage Hood #804/i)).toBeVisible()
+  await expect(drawer.getByRole('link', { name: /Ver carrinho/i })).toBeVisible()
+
+  await drawer.getByRole('button', { name: /Continuar comprando/i }).click()
+  await expect(drawer).toBeHidden()
+  await expect(page).toHaveURL(/\/nft\/sage-hood-804/)
 })
 
 test('pagamento recusado, clique repetido e timeout recuperam estado correto', async ({ page }) => {

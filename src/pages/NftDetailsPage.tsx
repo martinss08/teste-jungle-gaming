@@ -1,10 +1,12 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Heart, Linkedin, Mail, Minus, Plus, Search, ShoppingCart, Star, Twitter } from 'lucide-react'
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { ArrowLeft, CheckCircle2, Heart, Linkedin, Mail, Minus, Plus, ShoppingCart, Star, Twitter, X } from 'lucide-react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BenefitsSignup } from '../components/BenefitsSignup'
 import { NftCarousel } from '../components/NftCarousel'
 import { Button } from '../components/ui/Button'
+import { buttonVariants } from '../components/ui/buttonVariants'
+import { Dialog } from '../components/ui/Dialog'
 import { Skeleton } from '../components/ui/Skeleton'
 import type { NftReview, NftReviewsResponse } from '../contracts/api'
 import { parseApiError } from '../lib/apiError'
@@ -47,6 +49,74 @@ function PurchaseStatus({ purchase, className = '' }: { purchase: PurchaseState;
     <p role="status" aria-live="polite" className={`min-h-5 text-sm font-bold ${status?.tone === 'error' ? 'text-red-200' : 'text-success'} ${className}`}>
       {status?.message}
     </p>
+  )
+}
+
+function AddedToCartDrawer({
+  nft,
+  quantity,
+  onClose,
+}: {
+  nft: Nft
+  quantity: number
+  onClose: () => void
+}) {
+  const [showStatus, setShowStatus] = useState(true)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowStatus(false), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  return (
+    <Dialog
+      labelledBy="added-cart-title"
+      placement="right"
+      onClose={onClose}
+      className="min-h-screen w-full max-w-[390px] bg-card shadow-[-24px_0_70px_rgba(0,0,0,0.5)]"
+    >
+      <div className="flex min-h-screen flex-col p-5 font-mono">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {showStatus && (
+              <p role="status" aria-live="polite" className="inline-flex items-center gap-2 text-sm font-bold text-success">
+                <CheckCircle2 size={18} />
+                Adicionado ao carrinho
+              </p>
+            )}
+            <h2 id="added-cart-title" className="mt-2 font-display text-2xl font-bold text-foreground">
+              Item no carrinho
+            </h2>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Fechar carrinho" onClick={onClose}>
+            <X size={18} />
+          </Button>
+        </div>
+
+        <div className="mt-6 grid grid-cols-[72px_minmax(0,1fr)] gap-3 border border-border bg-[#170d0a] p-3">
+          <div className="size-[72px] overflow-hidden rounded-md bg-[#efe7d2]">
+            <img src={nft.hero} alt={nft.title} className="h-full w-full object-cover" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate font-display text-base font-bold text-[#d3c2b3]">{nft.title}</h3>
+            <p className="mt-1 truncate text-xs text-[#b29274]">Edicao: {nft.edition}</p>
+            <div className="mt-3 flex items-center justify-between gap-3 font-display text-sm font-bold">
+              <span className="text-[#ccb59d]">x {quantity}</span>
+              <span className="text-primarySoft">{formatEth(nft.priceEth)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto grid gap-3 pt-6">
+          <Link to="/carrinho" className={buttonVariants({ className: 'w-full font-display text-base font-bold' })}>
+            Ver carrinho
+          </Link>
+          <Button type="button" variant="secondary" className="w-full font-display text-base font-bold" onClick={onClose}>
+            Continuar comprando
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   )
 }
 
@@ -141,6 +211,7 @@ function NftDetails({ nftId }: { nftId: string }) {
   const [reviewPage, setReviewPage] = useState(0)
   const [activeImage, setActiveImage] = useState<string | null>(null)
   const [purchaseFeedback, setPurchaseFeedback] = useState<PurchaseState['feedback']>(null)
+  const [addedItem, setAddedItem] = useState<{ nft: Nft; quantity: number } | null>(null)
   const { addItem, getQuantityInCart, isUpdating } = useCart()
   const favorites = useFavorites()
   const navigate = useNavigate()
@@ -161,6 +232,12 @@ function NftDetails({ nftId }: { nftId: string }) {
     queryFn: ({ signal }) => listNfts({ collection, pageSize: 16 }, signal),
     enabled: Boolean(collection),
   })
+
+  useEffect(() => {
+    if (purchaseFeedback?.tone !== 'success') return undefined
+    const timeout = window.setTimeout(() => setPurchaseFeedback(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [purchaseFeedback])
 
   if (nftQuery.isPending) {
     return (
@@ -195,12 +272,13 @@ function NftDetails({ nftId }: { nftId: string }) {
   const inCart = getQuantityInCart(nftId)
   const remaining = Math.max(0, nft.available - inCart)
   const maxQuantity = Math.max(1, remaining)
-  const addToCart = async () => {
+  const addToCart = async ({ showDrawer = true }: { showDrawer?: boolean } = {}) => {
+    const requestedQuantity = Math.min(quantity, maxQuantity)
     setPurchaseFeedback(null)
-    const result = await addItem(nftId, Math.min(quantity, maxQuantity))
+    const result = await addItem(nftId, requestedQuantity)
     if (result.ok) {
       setQuantity(1)
-      setPurchaseFeedback({ tone: 'success', message: 'Adicionado ao carrinho.' })
+      if (showDrawer) setAddedItem({ nft, quantity: requestedQuantity })
     } else {
       setPurchaseFeedback({ tone: 'error', message: result.error })
     }
@@ -231,7 +309,7 @@ function NftDetails({ nftId }: { nftId: string }) {
         setQuantity={setQuantity}
         addToCart={() => void addToCart()}
         buyNow={async () => {
-          if (await addToCart()) void navigate({ to: '/carrinho' })
+          if (await addToCart({ showDrawer: false })) void navigate({ to: '/carrinho' })
         }}
         purchase={purchase}
         favorite={favorite}
@@ -269,9 +347,16 @@ function NftDetails({ nftId }: { nftId: string }) {
           <div className="order-1 self-start bg-card p-5 sm:order-2">
             <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#efe7d2] lg:size-[450px]">
               <img src={currentImage} alt={`Arte principal do NFT ${nft.title}`} className="h-full w-full object-cover" fetchPriority="high" />
-              <a href={currentImage} target="_blank" rel="noreferrer noopener" className="absolute right-0 top-0 grid size-9 place-items-center rounded-full bg-[#2a170f] text-foreground" aria-label="Abrir imagem em tamanho real">
-                <Search size={22} />
-              </a>
+              <button
+                type="button"
+                className="absolute right-0 top-0 grid size-9 place-items-center rounded-full bg-[#2a170f] text-primarySoft transition hover:text-primary disabled:opacity-50"
+                aria-label={favorite.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
+                aria-pressed={favorite.isFavorite}
+                disabled={favorite.isPending}
+                onClick={favorite.toggle}
+              >
+                <Heart size={20} className={favorite.isFavorite ? 'fill-current' : ''} />
+              </button>
             </div>
           </div>
         </div>
@@ -313,18 +398,23 @@ function NftDetails({ nftId }: { nftId: string }) {
               <QuantityControl quantity={quantity} setQuantity={setQuantity} maxQuantity={maxQuantity} size="lg" />
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button className="min-w-[150px]" onClick={() => void addToCart()} disabled={remaining < 1 || isUpdating}>
+                <Button
+                  className="min-w-[150px]"
+                  onClick={async () => {
+                    if (await addToCart({ showDrawer: false })) void navigate({ to: '/carrinho' })
+                  }}
+                  disabled={remaining < 1 || isUpdating}
+                >
                   Comprar
                 </Button>
                 <Button
                   variant="secondary"
                   className="min-w-[145px] border-primary text-primarySoft"
-                  onClick={favorite.toggle}
-                  disabled={favorite.isPending}
-                  aria-pressed={favorite.isFavorite}
+                  onClick={() => void addToCart()}
+                  disabled={remaining < 1 || isUpdating}
                 >
-                  <Heart size={18} className={favorite.isFavorite ? 'fill-current' : ''} />
-                  {favorite.isFavorite ? 'Favorito' : 'Favoritar'}
+                  <ShoppingCart size={18} />
+                  Adicionar ao carrinho
                 </Button>
               </div>
             </div>
@@ -436,6 +526,7 @@ function NftDetails({ nftId }: { nftId: string }) {
 
       <BenefitsSignup />
       </div>
+      {addedItem && <AddedToCartDrawer nft={addedItem.nft} quantity={addedItem.quantity} onClose={() => setAddedItem(null)} />}
     </>
   )
 }

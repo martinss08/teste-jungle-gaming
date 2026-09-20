@@ -4,7 +4,7 @@ Este documento registra as decisoes tecnicas da solucao, os contratos usados pel
 
 ## Visao geral
 
-A aplicacao foi implementada como um frontend real consumindo uma API REST simulada por MSW. Componentes e hooks nao recebem dados ficticios diretamente: eles chamam clientes REST via Axios, usam TanStack Query para estado remoto e reagem a eventos de tempo real via `socket.io-client`.
+A aplicacao foi implementada como um frontend real, seguindo o   que se pedia no Figma, consumindo uma API REST simulada por MSW. Componentes e hooks nao recebem dados ficticios diretamente: eles chamam clientes REST via Axios, usam TanStack Query para estado remoto e reagem a eventos de tempo real via `socket.io-client`.
 
 ## Rotas
 
@@ -54,8 +54,8 @@ Recursos principais:
   `PATCH /api/cart/items/:nftId`,
   `DELETE /api/cart/items/:nftId`.
 
-- Cupom e cotacao: `
-POST /api/cart/coupon`,
+- Cupom e cotacao: 
+  `POST /api/cart/coupon`,
   `DELETE /api/cart/coupon`,
   `POST /api/cart/review`,
   `GET /api/quote`.

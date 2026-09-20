@@ -9,7 +9,7 @@ type DialogProps = {
   labelledBy: string
   onClose: () => void
   children: ReactNode
-  placement?: 'center' | 'bottom'
+  placement?: 'center' | 'bottom' | 'right'
   className?: string
 }
 
@@ -68,7 +68,9 @@ export function Dialog({ labelledBy, onClose, children, placement = 'center', cl
     <div
       className={cn(
         'fixed inset-0 z-50 grid overflow-y-auto bg-[#080403]/72 backdrop-blur-sm',
-        placement === 'center' ? 'min-h-screen place-items-center px-4 py-6' : 'items-end',
+        placement === 'center' && 'min-h-screen place-items-center px-4 py-6',
+        placement === 'bottom' && 'items-end',
+        placement === 'right' && 'justify-items-end',
       )}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()

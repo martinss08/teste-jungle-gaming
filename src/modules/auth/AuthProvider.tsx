@@ -117,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         expireSession,
+        dismissSessionExpired: () => setSessionExpired(false),
       }}
     >
       {children}
