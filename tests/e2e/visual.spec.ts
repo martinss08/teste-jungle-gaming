@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { addCartItem, loginByApi, nfts, resetMock } from './helpers'
 
+/** Sem isso o screenshot pode sair com a fonte de fallback, o que estoura o diff de pixels. */
+async function waitForFonts(page: import('@playwright/test').Page) {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
+}
+
 async function waitForImages(page: import('@playwright/test').Page) {
   await page.waitForLoadState('domcontentloaded')
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -46,6 +51,7 @@ test('regressao visual da inicio', async ({ page }) => {
   await expect(page.locator('a[href^="/nft/"]:visible').first()).toBeVisible()
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
   await waitForImages(page)
+  await waitForFonts(page)
   await expect(page).toHaveScreenshot('inicio.png', screenshotOptions(page))
 })
 
@@ -53,6 +59,7 @@ test('regressao visual do detalhe', async ({ page }) => {
   await page.goto(`/nft/${nfts.emerald}`)
   await expect(page.getByRole('heading', { name: /Emerald Ape/i })).toBeVisible()
   await waitForImages(page)
+  await waitForFonts(page)
   await expect(page).toHaveScreenshot('detalhe-nft.png', screenshotOptions(page))
 })
 
@@ -62,6 +69,7 @@ test('regressao visual do carrinho', async ({ page }) => {
   await page.goto('/carrinho')
   await expect(page.locator('h2:visible', { hasText: /Emerald|Sage/i }).first()).toBeVisible()
   await waitForImages(page)
+  await waitForFonts(page)
   await expect(page).toHaveScreenshot('carrinho.png', screenshotOptions(page))
 })
 
@@ -71,5 +79,6 @@ test('regressao visual do pagamento', async ({ page }) => {
   await page.goto('/pagamento')
   await expect(page.getByRole('heading', { name: /Pagamento|Perfil do colecionador/i }).first()).toBeVisible()
   await waitForImages(page)
+  await waitForFonts(page)
   await expect(page).toHaveScreenshot('pagamento.png', screenshotOptions(page))
 })

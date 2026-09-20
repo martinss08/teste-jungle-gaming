@@ -16,7 +16,7 @@ import { formatEth } from '../lib/eth'
 import { cn } from '../lib/utils'
 import type { Nft } from '../types'
 import { getCatalogFacets, listNfts } from '../modules/catalog/api'
-import { type CatalogSearch, defaultCatalogSearch, toNftListParams } from '../modules/catalog/search'
+import { type CatalogSearch, type CatalogSearchParams, catalogSearchDefaults, defaultCatalogSearch, resolveCatalogSearch, stripCatalogDefaults, toNftListParams } from '../modules/catalog/search'
 import { useFavorites } from '../modules/catalog/useFavorites'
 
 type UpdateSearch = (next: Partial<CatalogSearch>) => void
@@ -77,7 +77,7 @@ function countActiveFilters(search: CatalogSearch) {
     search.network !== 'todos',
     search.tag !== 'todos',
     search.minPrice || search.maxPrice,
-    search.sort !== defaultCatalogSearch.sort,
+    search.sort !== catalogSearchDefaults.sort,
   ].filter(Boolean).length
 }
 
@@ -108,7 +108,7 @@ function PromoTile({ nft, title, description, search, reverse = false }: {
   nft?: Nft
   title: string
   description: string
-  search: CatalogSearch
+  search: CatalogSearchParams
   reverse?: boolean
 }) {
   return (
@@ -359,7 +359,7 @@ function CatalogEmpty({ onClear, className }: { onClear: () => void; className: 
 }
 
 export function HomePage() {
-  const search = useSearch({ from: '/' })
+  const search = resolveCatalogSearch(useSearch({ from: '/' }))
   const navigate = useNavigate({ from: '/' })
   const catalogQuery = useQuery({
     queryKey: ['nfts', search],
@@ -376,7 +376,7 @@ export function HomePage() {
 
   const updateSearch: UpdateSearch = (next) => {
     void navigate({
-      search: (old) => ({ ...old, ...next, page: next.page ?? 1 }),
+      search: (old) => stripCatalogDefaults({ ...resolveCatalogSearch(old), ...next, page: next.page ?? 1 }),
       resetScroll: false,
     })
   }

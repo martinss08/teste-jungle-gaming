@@ -62,9 +62,20 @@ export async function browserApi<T = unknown>(page: Page, path: string, options:
   return last!
 }
 
+/**
+ * A app so e renderizada depois do `await enableMocking()` em main.tsx, entao o #root
+ * com conteudo e o sinal de que o worker do MSW ja intercepta /api/*. Esperar por isso
+ * e deterministico; 'networkidle' dependia de uma janela de 500 ms sem rede, que a
+ * conexao de tempo real e uma maquina carregada derrubavam sem motivo.
+ */
+export async function waitForAppReady(page: Page) {
+  await page.waitForLoadState('domcontentloaded')
+  await page.waitForFunction(() => Boolean(document.querySelector('#root')?.firstElementChild))
+}
+
 export async function resetMock(page: Page) {
   await page.goto('/')
-  await page.waitForLoadState('networkidle')
+  await waitForAppReady(page)
   await page.evaluate(() => {
     localStorage.clear()
     sessionStorage.clear()
@@ -99,7 +110,7 @@ export async function resetMock(page: Page) {
   await browserApi(page, '/api/auth/logout', { method: 'POST' })
   await page.evaluate(() => localStorage.removeItem('kurio-session-token'))
   await page.goto('/')
-  await page.waitForLoadState('domcontentloaded')
+  await waitForAppReady(page)
 }
 
 export async function loginByApi(page: Page, credentials = user) {
@@ -113,7 +124,7 @@ export async function loginByApi(page: Page, credentials = user) {
     localStorage.setItem('kurio-session-token', token)
   }, session.token)
   await page.goto('/')
-  await page.waitForLoadState('domcontentloaded')
+  await waitForAppReady(page)
   return session
 }
 

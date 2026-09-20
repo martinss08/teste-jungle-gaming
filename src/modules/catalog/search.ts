@@ -12,7 +12,10 @@ export type CatalogSearch = {
   page: number
 }
 
-export const defaultCatalogSearch: CatalogSearch = {
+/** O que realmente vai para a URL: apenas os campos diferentes do padrao. */
+export type CatalogSearchParams = Partial<CatalogSearch>
+
+export const catalogSearchDefaults: CatalogSearch = {
   q: '',
   rarity: 'todos',
   category: 'todos',
@@ -24,13 +27,17 @@ export const defaultCatalogSearch: CatalogSearch = {
   page: 1,
 }
 
+/** Catalogo sem filtros: nenhum parametro na URL. */
+export const defaultCatalogSearch: CatalogSearchParams = {}
+
 function searchString(value: unknown, fallback = '') {
   if (typeof value === 'number') return String(value)
   if (typeof value !== 'string') return fallback
   return value.replace(/^"|"$/g, '')
 }
 
-export function validateCatalogSearch(search: Record<string, unknown>): CatalogSearch {
+/** Completa os campos ausentes na URL com os padroes, para uso na UI e na API. */
+export function resolveCatalogSearch(search: Record<string, unknown>): CatalogSearch {
   const page = Number(search.page || 1)
   return {
     q: searchString(search.q),
@@ -43,6 +50,19 @@ export function validateCatalogSearch(search: Record<string, unknown>): CatalogS
     sort: searchString(search.sort, 'recentes'),
     page: Number.isInteger(page) && page > 0 ? page : 1,
   }
+}
+
+/** Remove da URL tudo que esta no valor padrao. */
+export function stripCatalogDefaults(search: CatalogSearch): CatalogSearchParams {
+  const params: CatalogSearchParams = {}
+  for (const key of Object.keys(catalogSearchDefaults) as (keyof CatalogSearch)[]) {
+    if (search[key] !== catalogSearchDefaults[key]) Object.assign(params, { [key]: search[key] })
+  }
+  return params
+}
+
+export function validateCatalogSearch(search: Record<string, unknown>): CatalogSearchParams {
+  return stripCatalogDefaults(resolveCatalogSearch(search))
 }
 
 const withoutAll = (value: string) => (value === 'todos' ? undefined : value)

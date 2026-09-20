@@ -8,13 +8,14 @@ test.beforeEach(async ({ page }) => {
 test('busca, filtros combinados, ordenacao, paginacao e historico do catalogo', async ({ page }) => {
   const isMobile = (page.viewportSize()?.width ?? 0) < 768
   await page.goto('/')
+  await expect(page).toHaveURL(/\/$/)
   await page.getByRole('button', { name: 'Pagina 2' }).click()
   await expect(page).toHaveURL(/page=2/)
 
   if (isMobile) await page.getByRole('button', { name: /^Filtros/ }).click()
   await page.getByRole('button', { name: /^Fotografia/ }).click()
   await expect(page).toHaveURL(/category=Fotografia/)
-  await expect(page).toHaveURL(/page=1/)
+  await expect(page).not.toHaveURL(/page=/)
   await page.getByRole('button', { name: /^Polygon/ }).click()
   await expect(page).toHaveURL(/network=Polygon/)
   await page.getByRole('combobox', { name: 'Ordenar por:' }).selectOption('preco-maior')

@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils'
 import { useAuth } from '../auth/useAuth'
 import { AuthModalPage } from '../../pages/LoginPage'
 import { useRealtime } from '../realtime/useRealtime'
-import { defaultCatalogSearch, validateCatalogSearch } from '../catalog/search'
+import { defaultCatalogSearch, resolveCatalogSearch, stripCatalogDefaults } from '../catalog/search'
 
 type AuthMode = 'login' | 'register'
 
@@ -71,7 +71,7 @@ export function AppShell() {
     setSearchTerm(q)
     void navigate({
       to: '/',
-      search: pathname === '/' ? { ...validateCatalogSearch(currentSearch), q, page: 1 } : { ...defaultCatalogSearch, q },
+      search: stripCatalogDefaults({ ...resolveCatalogSearch(pathname === '/' ? currentSearch : {}), q, page: 1 }),
       hash: 'catalogo',
     })
   }

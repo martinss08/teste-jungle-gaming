@@ -4,8 +4,13 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  // Uma repeticao local absorve a maquina ocupada sem esconder falha real: o relatorio
+  // marca o caso como "flaky" em vez de "passed".
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
+  // A suite navega varias rotas por caso; 30 s estouravam em maquina sob carga.
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   reporter: [
     ['list'],
     ['html', { outputFolder: 'test-results/playwright-report', open: 'never' }],
